@@ -457,7 +457,7 @@
       <button type="button" id="playClose" aria-label="关闭播放">✕</button>
     </div>
     <div class="composer">
-      <div class="acts-row" id="actsRow" hidden><button type="button" id="actPhoto">📷 照片</button><button type="button" id="actXfer">¥ 给 TA 转账</button><button type="button" data-prefill="帮我画一张：">✎ 画一张</button><input type="file" id="photoFile" accept="image/*" multiple hidden></div>
+      <div class="acts-row" id="actsRow" hidden><button type="button" id="actPhoto">📷 照片</button><button type="button" id="actCall">📞 通话</button><button type="button" id="actXfer">¥ 给 TA 转账</button><button type="button" data-prefill="帮我画一张：">✎ 画一张</button><input type="file" id="photoFile" accept="image/*" multiple hidden></div>
       <div class="attach" id="attach" hidden></div>
       <div class="box">
         <button class="plus" id="plusBtn" type="button" aria-label="更多">＋</button>
@@ -472,8 +472,13 @@
       <div class="page"><div class="page-in">
         <p class="eyebrow">Moments</p>
         <h1 id="feedTitle">TA 的动态</h1>
-        <p class="lead">TA 自己的生活。点赞、评论，TA 都看得到。</p>
-        <div class="row" style="margin-bottom:14px"><button class="btn primary" type="button" id="feedNew">让 TA 发一条</button><span class="status" id="feedStatus"></span></div>
+        <p class="lead">你们各自的生活。你发的 TA 看得到，会来评论；TA 发的你也可以点赞、评论。</p>
+        <div class="row" style="margin-bottom:14px"><button class="btn primary" type="button" id="feedNew">让 TA 发一条</button><button class="btn" type="button" id="feedMine">我也发一条</button><span class="status" id="feedStatus"></span></div>
+        <div id="feedCompose" hidden style="margin-bottom:14px">
+          <label class="field">说点什么<textarea id="feedText" maxlength="300" placeholder="此刻在想什么…"></textarea></label>
+          <div class="row"><button class="btn" type="button" id="feedPic">＋ 配图</button><button class="btn primary" type="button" id="feedSend">发布</button><button class="btn" type="button" id="feedCancel">取消</button><span class="status" id="feedPicName"></span></div>
+          <input type="file" id="feedFile" accept="image/*" hidden>
+        </div>
         <div id="feed"></div>
       </div></div>
     </section>
@@ -702,6 +707,20 @@
   </div>
 </div>
 
+<div class="sheet-bg" id="callSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="通话">
+    <header><h2 id="callTitle">通话</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div style="text-align:center;padding:6px 0">
+      <span class="av" id="callAv" style="width:72px;height:72px;font-size:28px;display:inline-flex;align-items:center;justify-content:center"></span>
+      <p id="callHint" class="note" style="margin-top:12px">按住下面的按钮说话，松开 TA 就会回答</p>
+      <p id="callHeard" style="min-height:26px;margin:6px 0"></p>
+    </div>
+    <div class="row"><button class="btn primary" type="button" id="callTalk" style="flex:1;padding:16px">按住说话</button></div>
+    <p class="note">这是对讲机式的通话：你说完松手，TA 想一下再开口，不能中途插话。说的内容会照常留在聊天记录里。</p>
+    <div class="row" style="justify-content:flex-end"><button class="btn danger" type="button" id="callEnd">挂断</button></div>
+  </div>
+</div>
+
 <div class="sheet-bg" id="xferSheet" hidden>
   <div class="sheet" role="dialog" aria-label="给 TA 转账">
     <header><h2>给 TA 转账</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
@@ -862,8 +881,10 @@ const P = () => settings.persona;
 const model = (p = settings.provider) => settings.models[p] || PROVIDERS[p].models[0];
 const base = (p = settings.provider) => (settings.bases[p] || PROVIDERS[p].base).replace(/\/+$/, '');
 
-// 记忆总量封顶，聊天时只带最近的一部分，免得上下文越滚越长、越聊越贵
-const MEM_MAX = 80, MEM_USE = 40;
+// 记忆总量封顶，免得上下文越滚越长、越聊越贵。
+// MEM_USE 与 MEM_MAX 保持一致：记忆页列出多少条，TA 就知道多少条，
+// 否则用户会看着一条明明在列表里的记忆，纳闷 TA 为什么不记得。
+const MEM_MAX = 80, MEM_USE = MEM_MAX;
 const memKey = s => s.replace(/[\s，。,.、!！?？~～"'"'']/g, '').toLowerCase();
 function addMemory(text) {
   const t = String(text || '').trim().slice(0, 200);
@@ -1651,9 +1672,58 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
     const c0 = chat;
     for (const card of bot.cards) if (card.type === 'img' && card.status === 'new') drawCard(c0, card);
     setBusy(false);
-    if (settings.speak && bot.content) speak(bot.content);
+    if ((settings.speak || inCall) && bot.content) speak(bot.content);
   }
 }
+
+// ---- 按键通话 ----
+// 对讲机式：按住说 → 松开转文字 → 走正常的 send() → 回复由上面那个钩子念出来。
+// 做不了随时插话，那需要流式语音接口（DeepSeek 没有）。
+let inCall = false, callRec = null, callHeard = '';
+function callSupported() {
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition) && 'speechSynthesis' in window;
+}
+function openCall() {
+  if (!callSupported()) { toast('这个浏览器不支持语音识别或朗读'); return; }
+  inCall = true;
+  openSheet('callSheet');
+}
+function endCall() {
+  inCall = false;
+  try { callRec?.abort(); } catch { /* 已经停了 */ }
+  callRec = null;
+  speechSynthesis.cancel();
+  closeSheets();
+}
+function callStart() {
+  if (!inCall || callRec) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  speechSynthesis.cancel();
+  callHeard = '';
+  callRec = new SR();
+  callRec.lang = 'zh-CN'; callRec.interimResults = true; callRec.continuous = false;
+  callRec.onresult = e => {
+    callHeard = [...e.results].map(r => r[0].transcript).join('');
+    $('callHeard').textContent = callHeard;
+  };
+  callRec.onerror = e => {
+    if (e.error !== 'aborted' && e.error !== 'no-speech') $('callHint').textContent = '识别出错：' + e.error;
+  };
+  callRec.onend = async () => {
+    callRec = null;
+    $('callTalk').classList.remove('on');
+    const text = callHeard.trim(); callHeard = '';
+    if (!inCall) return;
+    if (!text) { $('callHint').textContent = '没听清，再按住说一次'; return; }
+    $('callHint').textContent = `${P().name || 'TA'} 在想…`;
+    try { await send(text); } catch { /* send 自己会提示 */ }
+    if (inCall) { $('callHint').textContent = '按住说话'; $('callHeard').textContent = ''; }
+  };
+  $('callTalk').classList.add('on');
+  $('callHint').textContent = '在听…';
+  try { callRec.start(); } catch { callRec = null; $('callHint').textContent = '麦克风被占用了，松开再试'; }
+}
+function callStop() { try { callRec?.stop(); } catch { /* 没在录 */ } }
 
 function speak(text) {
   if (!('speechSynthesis' in window)) return;
@@ -1676,6 +1746,12 @@ function openSheet(id) {
     albumSheet: renderAlbum,
     firstSheet: renderFirsts,
     walletSheet: renderWallet,
+    callSheet: () => {
+      $('callTitle').textContent = `和 ${P().name || 'TA'} 通话`;
+      $('callAv').innerHTML = avatarInner();
+      $('callHint').textContent = '按住下面的按钮说话，松开 TA 就会回答';
+      $('callHeard').textContent = '';
+    },
     xferSheet: () => { $('xferAmt').value = ''; $('xferNote').value = ''; },
     billSheet: () => { billType = 'out'; document.querySelectorAll('#billType button').forEach(b => b.classList.toggle('on', b.dataset.bt === 'out')); fillBillCats(); $('billDate').value = ymd(new Date()); renderBill(); },
     periodSheet: renderPeriod,
@@ -2172,9 +2248,10 @@ async function complete(system, user) {
 }
 function feedSystem() {
   const now = new Date(), nick = P().nick || '对方';
-  const posts = moments.slice(0, 5).map(p => '- ' + p.text).join('\n');
+  const posts = taPosts().slice(0, 5).map(p => '- ' + p.text).join('\n');
+  const mine = moments.filter(p => p.who === 'me').slice(0, 3).map(p => '- ' + p.text + (p.img ? '（配了照片）' : '')).join('\n');
   const recent = chat?.messages?.length ? normalize(chat.messages).slice(-6).map(m => `${m.role === 'user' ? nick : '你'}：${m.content.slice(0, 120)}`).join('\n') : '';
-  return [personaBrief(), `现在是 ${ymd(now)} 周${WEEK[now.getDay()]} ${pad(now.getHours())}:${pad(now.getMinutes())}。`, lifeContext(), recent ? '你们最近聊的：\n' + recent : '', posts ? '你最近发过的动态（别重复）：\n' + posts : ''].filter(Boolean).join('\n\n');
+  return [personaBrief(), `现在是 ${ymd(now)} 周${WEEK[now.getDay()]} ${pad(now.getHours())}:${pad(now.getMinutes())}。`, lifeContext(), recent ? '你们最近聊的：\n' + recent : '', posts ? '你最近发过的动态（别重复）：\n' + posts : '', mine ? `${nick}最近发的动态：\n` + mine : ''].filter(Boolean).join('\n\n');
 }
 async function newPost(auto = false) {
   if (postBusy) return;
@@ -2213,25 +2290,28 @@ async function newPost(auto = false) {
   }
 }
 // 回到 App 或打开动态页时：隔 8 小时以上、白天、今天少于 3 条，TA 就自己发一条
+// 自己发的动态不算进 TA 的配额，也不该点亮"TA 有新动态"的小红点
+const taPosts = () => moments.filter(p => p.who !== 'me');
 function maybeAutoPost() {
   const h = new Date().getHours();
   if (h < 8 || settings.autoPost === false) return;
   const today = ymd(new Date());
-  if (moments.filter(p => ymd(new Date(p.at)) === today).length >= 3) return;
-  if (moments.length && Date.now() - moments[0].at < 8 * 36e5) return;
+  const ta = taPosts();
+  if (ta.filter(p => ymd(new Date(p.at)) === today).length >= 3) return;
+  if (ta.length && Date.now() - ta[0].at < 8 * 36e5) return;
   newPost(true);
 }
-function updateFeedDot() { $('feedDot').hidden = !(moments[0] && moments[0].at > feedSeen && tab !== 'feed'); }
+function updateFeedDot() { const t = taPosts()[0]; $('feedDot').hidden = !(t && t.at > feedSeen && tab !== 'feed'); }
 function renderFeed() {
   const name = esc(P().name || 'TA'), me = esc(P().nick || '我');
   $('feedTitle').textContent = `${P().name || 'TA'} 的动态`;
   $('feed').innerHTML = moments.length ? moments.map(p => `
     <article class="post">
-      <header><span class="av">${avatarInner()}</span><span><b>${name}</b><small>${ago(p.at)}</small></span></header>
+      <header><span class="av">${p.who === 'me' ? esc((P().nick || '我').slice(0, 1)) : avatarInner()}</span><span><b>${p.who === 'me' ? me : name}</b><small>${ago(p.at)}</small></span></header>
       <p>${esc(p.text)}</p>
       ${p.drawing ? '<div class="ph"></div>' : p.img ? `<img class="pic" data-postimg="${p.id}" alt="">` : ''}
       <div class="ops"><button type="button" data-like="${p.id}" class="${p.liked ? 'on' : ''}">${p.liked ? '♥ 喜欢' : '♡ 喜欢'}</button><button type="button" data-cmt="${p.id}">评论</button></div>
-      ${p.comments.length ? `<div class="cmts">${p.comments.map(c => `<div><b>${c.who === 'me' ? me : name}</b>${c.who === 'ta' ? ` 回复 ${me}` : ''}：${esc(c.text)}</div>`).join('')}</div>` : ''}
+      ${p.comments.length ? `<div class="cmts">${p.comments.map(c => `<div><b>${c.who === 'me' ? me : name}</b>${c.who === 'ta' && p.who !== 'me' ? ` 回复 ${me}` : ''}：${esc(c.text)}</div>`).join('')}</div>` : ''}
       <div class="cmt-in" data-cmtbox="${p.id}" hidden><input maxlength="100" placeholder="说点什么…" aria-label="评论"><button class="btn primary" type="button" data-cmtsend="${p.id}">发送</button></div>
     </article>`).join('') : `<div class="empty"><i>◎</i><b>还没有动态</b>点上面的按钮，看看 TA 今天在干嘛</div>`;
   $('feed').querySelectorAll('img[data-postimg]').forEach(async img => {
@@ -2239,6 +2319,37 @@ function renderFeed() {
     const blob = await DB.get('img:' + p.id).catch(() => null);
     img.src = blob ? URL.createObjectURL(blob) : (p.url || '');
   });
+}
+// ---- 我也发一条 ----
+let myPic = null;
+function resetCompose() {
+  myPic = null;
+  $('feedText').value = ''; $('feedPicName').textContent = ''; $('feedFile').value = '';
+  $('feedCompose').hidden = true;
+}
+async function publishMine() {
+  const text = $('feedText').value.trim();
+  if (!text && !myPic) { toast('写点什么，或者配张图'); return; }
+  const post = { id: uid(), at: Date.now(), who: 'me', text, liked: false, comments: [] };
+  if (myPic) { await DB.set('img:' + post.id, myPic); post.img = true; }
+  moments.unshift(post); moments = moments.slice(0, 200);
+  await DB.set('moments', moments);
+  resetCompose(); renderFeed();
+  markFirst('mypost', '你第一次发动态');
+  taReplyToMine(post);
+}
+// 发帖本身已经成功了，TA 的评论要不来也不该报错打扰
+async function taReplyToMine(p) {
+  if (!(await loadSecret(settings.provider))) return;
+  $('feedStatus').textContent = `${P().name || 'TA'} 看到了…`;
+  try {
+    const nick = P().nick || '对方';
+    const reply = stripTags(await complete(feedSystem(),
+      `${nick}刚发了一条动态：「${p.text || '（只有一张照片，没配文字）'}」${p.img ? '，还配了一张照片' : ''}。像在朋友圈里给${nick}评论一样回一句，简短自然，别客套也别夸张。只输出评论内容。`))
+      .replace(/^["“「]+|["”」]+$/g, '').trim();
+    if (reply) { p.comments.push({ who: 'ta', text: reply, at: Date.now() }); await DB.set('moments', moments); renderFeed(); }
+  } catch { /* 静默 */ }
+  $('feedStatus').textContent = '';
 }
 async function commentPost(id, text) {
   const p = moments.find(x => x.id === id); if (!p) return;
@@ -2449,6 +2560,12 @@ $('meExport').onclick = () => exportAll();
 $('plusBtn').onclick = () => { const r = $('actsRow'); r.hidden = !r.hidden; $('plusBtn').classList.toggle('on', !r.hidden); };
 $('actPhoto').onclick = () => $('photoFile').click();
 $('actXfer').onclick = () => { $('actsRow').hidden = true; $('plusBtn').classList.remove('on'); openSheet('xferSheet'); };
+$('actCall').onclick = () => { $('actsRow').hidden = true; $('plusBtn').classList.remove('on'); openCall(); };
+$('callEnd').onclick = endCall;
+$('callTalk').addEventListener('pointerdown', e => { e.preventDefault(); callStart(); });
+// 松手、指针移出按钮、系统取消手势，都当作说完了
+for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('callTalk').addEventListener(ev, callStop);
+$('callTalk').addEventListener('contextmenu', e => e.preventDefault());
 $('photoFile').onchange = async e => {
   const files = [...(e.target.files || [])].slice(0, 4 - pendingImgs.length); e.target.value = '';
   for (const f of files) { try { pendingImgs.push(await photoURL(f)); } catch { toast('这张图读不了'); } }
@@ -2471,6 +2588,20 @@ $('xferGo').onclick = async () => {
 };
 $('walXfer').onclick = () => openSheet('xferSheet');
 $('feedNew').onclick = () => newPost(false);
+$('feedMine').onclick = () => {
+  const box = $('feedCompose');
+  box.hidden = !box.hidden;
+  if (!box.hidden) $('feedText').focus(); else resetCompose();
+};
+$('feedCancel').onclick = resetCompose;
+$('feedSend').onclick = publishMine;
+$('feedPic').onclick = () => $('feedFile').click();
+$('feedFile').onchange = async e => {
+  const f = e.target.files?.[0]; e.target.value = '';
+  if (!f) return;
+  try { myPic = await shrinkPhoto(f, 1280); $('feedPicName').textContent = '已选一张照片'; }
+  catch { myPic = null; $('feedPicName').textContent = ''; toast('这张图读不了'); }
+};
 $('feed').addEventListener('click', async e => {
   const lk = e.target.closest('[data-like]');
   if (lk) {
@@ -2576,7 +2707,7 @@ document.addEventListener('click', e => {
   const o = e.target.closest('[data-open]');
   if (o) { openSheet(o.dataset.open); if (o.dataset.focus) setTimeout(() => $(o.dataset.focus)?.scrollIntoView({ block: 'center' }), 60); return; }
   const pf = e.target.closest('[data-prefill]'); if (pf) { prefill(pf.dataset.prefill); return; }
-  if (e.target.closest('[data-close]') || e.target.classList.contains('sheet-bg')) closeSheets();
+  if (e.target.closest('[data-close]') || e.target.classList.contains('sheet-bg')) { if (inCall) endCall(); else closeSheets(); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
 
