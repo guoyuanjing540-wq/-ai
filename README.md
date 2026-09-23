@@ -2,10 +2,11 @@
 
 一个装在手机桌面上的 AI 陪伴 App。纯网页（PWA），不用服务器、不用编译，自己填 API Key 就能用。
 
-![毛玻璃风格](screenshots/glass.png)
+![四个页面](screenshots/tabs.png)
 
 ## 能做什么
 
+- **底部四栏**：对话 / 记忆 / 生活 / 我的
 - **TA 的设定**：名字、关系、TA 怎么叫你、在一起的日子、性格、头像
 - **毛玻璃风格**：半透明磨砂界面，可换自己的照片当背景、调模糊度；4 种主题色，自带深色模式；也可以切回简洁风格
 - **日历和纪念日**：聊天时说"周六晚上七点提醒我去看海"，TA 会自己记进日历；纪念日、生日每年自动出现
@@ -16,6 +17,7 @@
 - **TA 主动找你**：隔几个小时再打开 App，TA 会先开口；配一个免费的 Cloudflare Worker，App 关着也能收到 TA 的消息和日程提醒
 - **多家模型**：DeepSeek、Claude、OpenAI、智谱 GLM，流式输出
 
+![毛玻璃风格](screenshots/glass.png)
 ![画图](screenshots/draw.png)
 ![主动找你](screenshots/proactive.png)
 
