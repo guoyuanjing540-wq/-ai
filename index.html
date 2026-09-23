@@ -324,6 +324,44 @@
   }
   html.glass .tile, html.glass .svc a, html.glass .mlist, html.glass .memrow { box-shadow: var(--edge); }
 
+  /* 生活：权限卡片 / 账单 / 经期 / 健康 / 小游戏 */
+  .perms { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+  .perm { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 18px; padding: 12px 14px; display: flex; gap: 12px; align-items: center; min-width: 0; }
+  .perm > span:last-child { min-width: 0; }
+  .perm b { display: block; font-size: 15px; }
+  .perm small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .perm.on small { color: var(--accent); }
+  .perm .ic { width: 34px; height: 34px; border-radius: 50%; font-size: 15px; }
+  .svc button { border: 1px solid var(--line); background: var(--card); border-radius: 18px; padding: 16px 6px 12px; display: grid; justify-items: center; gap: 4px; text-align: center; }
+  .deep { margin-top: 18px; background: color-mix(in srgb, var(--muted) 10%, var(--card)); border-radius: 18px; padding: 16px 18px; }
+  .deep b { display: block; font-size: 15px; margin-bottom: 6px; }
+  .deep p { margin: 0; font-size: 13px; color: var(--muted); }
+  .stat { background: color-mix(in srgb, var(--accent) 10%, var(--card)); border-radius: 16px; padding: 14px 16px; display: grid; gap: 2px; }
+  .stat b { font-family: var(--serif); font-size: 26px; font-weight: 600; color: var(--accent); line-height: 1.2; }
+  .stat small { color: var(--muted); font-size: 12px; }
+  .stat2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .bars { display: grid; gap: 6px; }
+  .bar { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
+  .bar i { display: block; height: 8px; border-radius: 99px; background: var(--accent); opacity: .75; }
+  .bar span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .amt { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .amt.in { color: var(--accent); }
+  .water { display: flex; align-items: center; justify-content: center; gap: 18px; }
+  .water b { font-family: var(--serif); font-size: 40px; font-weight: 600; color: var(--accent); }
+  .water small { color: var(--muted); }
+  .water button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); font-size: 22px; }
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 70px; }
+  .week div { display: grid; justify-items: center; gap: 4px; font-size: 11px; color: var(--muted); align-self: end; }
+  .week i { display: block; width: 14px; border-radius: 6px; background: var(--accent); opacity: .7; min-height: 3px; }
+  .sheet > * { min-width: 0; }
+  .gboard { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px; border-radius: 16px; background: color-mix(in srgb, var(--muted) 16%, var(--card)); touch-action: none; user-select: none; -webkit-user-select: none; }
+  .gc { aspect-ratio: 1; border-radius: 10px; display: grid; place-items: center; font-weight: 700; font-size: 22px; background: color-mix(in srgb, var(--card) 70%, transparent); font-variant-numeric: tabular-nums; }
+  .gc.hi { color: #fff; }
+  .mic { flex: none; width: 36px; height: 36px; border-radius: 12px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; }
+  .mic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+  .mic.on { color: #fff; background: var(--danger); }
+  html.glass .perm, html.glass .svc button { -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%); box-shadow: var(--edge); }
+
   .scrim { display: none; }
   @media (max-width: 760px) {
     .item .del { opacity: 1; }
@@ -364,6 +402,7 @@
     <div class="composer">
       <div class="box">
         <textarea id="input" rows="1" aria-label="输入消息"></textarea>
+        <button class="mic" id="micBtn" type="button" aria-label="语音输入" hidden><svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"/></svg></button>
         <button class="send" id="sendBtn" type="button" aria-label="发送" disabled></button>
       </div>
     </div>
@@ -386,13 +425,15 @@
 
     <section class="view" id="vLife" hidden>
       <div class="page"><div class="page-in">
-        <p class="eyebrow">Life · 一起生活</p>
-        <h1>一起过日子</h1>
-        <p class="lead">日历、歌单、心愿都在这里。聊天时说一声，TA 也会帮你记下。</p>
+        <p class="eyebrow">Phone &amp; Life</p>
+        <h1>手机与生活</h1>
+        <p class="lead">权限只在你点了之后才申请；敏感记录只保存在这台手机上。</p>
+        <div class="perms" id="perms"></div>
+        <h2>一起过日子</h2>
         <div class="tiles" id="lifeTiles"></div>
         <h2>生活服务</h2>
         <div class="svc" id="svc"></div>
-        <p class="foot-note">都是跳转到对应的网页或 App，知言不会读取其他 App 的数据。</p>
+        <div class="deep"><b>更深的系统权限</b><p>Apple 健康、屏幕使用时间、读取其他 App 的账单，这些需要做成原生 App，并通过苹果、安卓和对应平台的授权。网页版做不到，所以账单和健康需要你手动记，或者聊天时告诉 TA。</p></div>
       </div></div>
     </section>
 
@@ -491,6 +532,68 @@
     <div class="row"><input class="plain" id="wishInput" maxlength="40" placeholder="想买的东西" aria-label="想买的东西"><button class="btn primary" type="button" id="wishAdd">加上</button></div>
     <div class="stack" id="wishList"></div>
     <p class="note">聊天时说"我想买……"或者一起挑中了什么，TA 也会帮你放进来。点链接会跳去对应的 App 搜。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="billSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="账单">
+    <header><h2>账单</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="cal-head"><button class="icon-btn" type="button" id="billPrev" aria-label="上个月">‹</button><b id="billMonth"></b><button class="icon-btn" type="button" id="billNext" aria-label="下个月">›</button></div>
+    <div class="stat2"><div class="stat"><small>支出</small><b id="billOut">¥0</b></div><div class="stat"><small>收入</small><b id="billIn">¥0</b></div></div>
+    <div class="bars" id="billCats"></div>
+    <h3>记一笔</h3>
+    <div class="seg two" id="billType"><button type="button" data-bt="out" class="on">支出</button><button type="button" data-bt="in">收入</button></div>
+    <div class="grid2">
+      <label class="field">金额<input id="billAmt" inputmode="decimal" placeholder="0.00"></label>
+      <label class="field">类别<select id="billCat"></select></label>
+      <label class="field">从哪付的<select id="billSrc"><option>微信</option><option>支付宝</option><option>银行卡</option><option>现金</option><option>其他</option></select></label>
+      <label class="field">日期<input id="billDate" type="date"></label>
+    </div>
+    <label class="field">备注（可不填）<input id="billNote" maxlength="40" placeholder="比如：楼下奶茶"></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="billAdd">记一笔</button></div>
+    <div class="stack" id="billList"></div>
+    <p class="note">网页读不到支付宝、微信的账单，需要手记。聊天时说"奶茶花了 15"，TA 也会帮你记上。只保存在这台手机上。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="periodSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="经期">
+    <header><h2>经期</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="stat"><small id="perLabel">现在</small><b id="perMain">还没有记录</b><small id="perSub"></small></div>
+    <div class="row"><button class="btn primary" type="button" id="perStart">今天来了</button><button class="btn" type="button" id="perEnd">今天结束了</button></div>
+    <div class="grid2">
+      <label class="field">平均周期（天）<input id="perCycle" type="number" min="18" max="60"></label>
+      <label class="field">经期长度（天）<input id="perLen" type="number" min="2" max="12"></label>
+    </div>
+    <label class="field">补记一次（选开始那天）<div class="row"><input class="plain" id="perPast" type="date" style="flex:1"><button class="btn" type="button" id="perAddPast">补记</button></div></label>
+    <h3>记录</h3>
+    <div class="stack" id="perList"></div>
+    <label class="toggle"><span>让 TA 知道<small>打开后，经期状态会随聊天发给你选的模型，TA 会在这几天更照顾你</small></span><input type="checkbox" id="perShare"></label>
+    <p class="note">只保存在这台手机上。记满两次以上会自动算平均周期。预测只供参考。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="healthSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="健康">
+    <header><h2>健康</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <h3>今天喝水</h3>
+    <div class="water"><button type="button" id="waterMinus" aria-label="少一杯">−</button><span style="text-align:center"><b id="waterNum">0</b><small id="waterGoalTxt"> / 8 杯</small></span><button type="button" id="waterPlus" aria-label="多一杯">＋</button></div>
+    <div class="week" id="waterWeek"></div>
+    <div class="grid2">
+      <label class="field">每天目标（杯）<input id="waterGoal" type="number" min="1" max="20"></label>
+      <label class="field">昨晚睡了（小时）<input id="sleepHrs" type="number" min="0" max="16" step="0.5" placeholder="比如 7.5"></label>
+    </div>
+    <label class="toggle"><span>让 TA 知道<small>喝水和睡眠会随聊天发给模型，TA 会提醒你喝水、早点睡</small></span><input type="checkbox" id="healthShare"></label>
+    <p class="note">网页读不到 Apple 健康或手机计步，这里是手动记的。聊天时说"喝了一杯水"，TA 也会帮你记上。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="gameSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="小游戏">
+    <header><h2>休息一下 · 2048</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="stat2"><div class="stat"><small>分数</small><b id="gScore">0</b></div><div class="stat"><small>最高</small><b id="gBest">0</b></div></div>
+    <div class="gboard" id="gBoard"></div>
+    <div class="row" style="justify-content:space-between"><span class="status" id="gMsg">滑动方块，相同数字会合在一起</span><button class="btn" type="button" id="gNew">重新开始</button></div>
   </div>
 </div>
 
@@ -630,7 +733,8 @@ async function loadSecret(name) {
 
 const DEFAULT_PERSONA = { name: '阿言', rel: '恋人', nick: '', traits: '温柔、细心，有一点小幽默，会认真听你说话，偶尔也会撒娇。', since: '', avatar: '' };
 let settings = { provider: 'deepseek', models: {}, bases: {}, sys: '', memoryOn: true, diaryOn: true, speak: false, accent: 'apricot', glass: true, wallBlur: 12, img: 'glm', opener: true, push: { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' }, persona: { ...DEFAULT_PERSONA } };
-let index = [], memories = [], diary = [], events = [], wishes = [], songs = [], tracks = [];
+let index = [], memories = [], diary = [], events = [], wishes = [], songs = [], tracks = [], ledger = [];
+let period = { logs: [], cycle: 28, len: 5, share: false }, health = { water: {}, sleep: {}, goal: 8, share: true }, perm = {};
 let configured = {}, imgReady = false;
 const drawing = new Set(), imgURLs = new Map();
 let currentId = null, chat = null, showAll = false, controller = null;
@@ -766,7 +870,7 @@ function renderHome() {
     <div class="chips">${chips.map(c => `<button class="chip" type="button">${esc(c)}</button>`).join('')}</div>`;
 }
 
-const TAG_RE = /\[\[(日程|歌|心愿|小红书|记住|画)\|([^\[\]]*?)\]\]/g;
+const TAG_RE = /\[\[(日程|歌|心愿|小红书|记住|画|记账|喝水)\|([^\[\]]*?)\]\]/g;
 const stripTags = s => (s || '').replace(TAG_RE, '').replace(/\[\[[^\]]*$/, '').replace(/\n{3,}/g, '\n\n').trim();
 
 function cardHTML(c) {
@@ -785,6 +889,10 @@ function cardHTML(c) {
       return `<div class="card"><span class="k">小红书</span><span class="t">搜：${esc(c.kw)}</span><div class="links">${link('去小红书看看', LINKS.xhs(c.kw))}</div></div>`;
     case 'mem':
       return `<div class="card"><span class="k">◇ 记住了</span><span class="s">${esc(c.text)}</span></div>`;
+    case 'bill':
+      return `<div class="card"><span class="k">¥ 记了一笔</span><span class="t">${c.kind === 'in' ? '收入' : '支出'} ¥${money(c.amount)}</span><span class="s">${esc(c.cat)}${c.note ? ' · ' + esc(c.note) : ''}</span></div>`;
+    case 'water':
+      return `<div class="card"><span class="k">💧 喝水</span><span class="t">今天第 ${c.n} 杯${c.n >= c.goal ? '，达标啦' : ''}</span><span class="s">目标 ${c.goal} 杯</span></div>`;
     case 'img': {
       const busy = drawing.has(c.id);
       if (busy) return `<div class="card" data-imgcard="${c.id}"><span class="k">✎ 正在画…</span><span class="s">${esc(c.prompt)}</span><div class="ph"></div></div>`;
@@ -877,13 +985,17 @@ function systemPrompt() {
 - 推荐歌，每首一个：[[歌|歌名|歌手]]
 - 对方说想买什么，或你们一起挑中了东西：[[心愿|商品名]]
 - 值得去小红书搜的：[[小红书|关键词]]
-- 对方告诉你值得长期记住的事：[[记住|内容]]${imgReady ? `
+- 对方告诉你值得长期记住的事：[[记住|内容]]
+- 对方说花了钱或收到钱：[[记账|支出或收入|金额|类别|备注]]（类别从这些里选：支出 ${CATS.out.join('、')}；收入 ${CATS.in.join('、')}）
+- 对方说喝了水：[[喝水|杯数]]${imgReady ? `
 - 对方想看图、让你画画、要头像或壁纸，或你想让对方看看某个画面：[[画|画面描述]]（写清主体、场景、风格、光线和色调，一次最多一张）` : ''}
 只在确实需要时用，一次最多 5 个。标记之外照常说话。${imgReady ? '' : '\n你现在还不能画图；对方让你画的话，温柔地告诉对方在设置的"画图"里填一个智谱的 Key 就可以（免费）。'}`,
   ];
   if (settings.memoryOn && memories.length) parts.push(`你记得的关于${nick}的事：\n` + memories.map(m => '- ' + m.text).join('\n'));
   const up = upcoming(14);
   if (up.length) parts.push('日历里接下来的安排：\n' + up.map(e => `- ${e.on}${e.time ? ' ' + e.time : ''} ${e.title}`).join('\n'));
+  const life = lifeContext();
+  if (life) parts.push(life);
   if (settings.diaryOn && diary.length) parts.push('对方最近的心情日记（只作参考，不要逐条复述）：\n' + diary.slice(0, 3).map(d => `${d.date} ${d.mood} ${d.note || ''}`).join('\n'));
   if (playing && !audio.paused) {
     const t = tracks.find(t => t.id === playing);
@@ -988,7 +1100,7 @@ async function* streamChat({ provider, key, system, messages, signal }) {
 
 async function applyTags(bot) {
   const cards = [];
-  const changed = { events: false, wishes: false, songs: false, memories: false };
+  const changed = { events: false, wishes: false, songs: false, memories: false, ledger: false, health: false };
   for (const [, type, body] of (bot.content || '').matchAll(TAG_RE)) {
     const f = body.split('|').map(x => x.trim());
     if (type === '日程') {
@@ -1017,6 +1129,20 @@ async function applyTags(bot) {
       cards.push({ type: 'wish', name });
     } else if (type === '小红书') {
       if (f[0]) cards.push({ type: 'xhs', kw: f[0] });
+    } else if (type === '记账') {
+      let [kind = '', amt = '', cat = '', ...rest] = f;
+      if (!/^(支出|收入)$/.test(kind)) { rest.unshift(cat); cat = amt; amt = kind; kind = '支出'; }
+      const amount = Math.round(Math.abs(parseFloat(String(amt).replace(/[^\d.]/g, ''))) * 100) / 100;
+      if (!amount) continue;
+      const t = kind === '收入' ? 'in' : 'out';
+      const e = { id: uid(), date: ymd(new Date()), type: t, amount, cat: CATS[t].includes(cat) ? cat : '其他', src: '', note: rest.join('|').slice(0, 40) || (CATS[t].includes(cat) ? '' : cat) };
+      ledger.unshift(e); changed.ledger = true;
+      cards.push({ ...e, kind: e.type, type: 'bill' });
+    } else if (type === '喝水') {
+      const n = Math.max(1, Math.min(5, parseInt(f[0], 10) || 1));
+      const k = ymd(new Date());
+      health.water[k] = (health.water[k] || 0) + n; changed.health = true;
+      cards.push({ type: 'water', n: health.water[k], goal: health.goal });
     } else if (type === '画') {
       const prompt = f.join('|').slice(0, 800);
       if (!prompt || !imgReady || cards.some(c => c.type === 'img')) continue;
@@ -1034,6 +1160,8 @@ async function applyTags(bot) {
   if (changed.songs) await DB.set('songs', songs);
   if (changed.wishes) await DB.set('wishes', wishes);
   if (changed.memories) await DB.set('memories', memories);
+  if (changed.ledger) await DB.set('ledger', ledger);
+  if (changed.health) await DB.set('health', health);
 }
 
 async function imgKey(p) { return (await loadSecret('img-' + p)) || (await loadSecret(p)); }
@@ -1323,6 +1451,10 @@ function openSheet(id) {
     calSheet: () => { calSel = ymd(new Date()); calMonth = new Date(); calMonth.setDate(1); renderCal(); },
     musicSheet: renderMusic,
     wishSheet: renderWishes,
+    billSheet: () => { billType = 'out'; document.querySelectorAll('#billType button').forEach(b => b.classList.toggle('on', b.dataset.bt === 'out')); fillBillCats(); $('billDate').value = ymd(new Date()); renderBill(); },
+    periodSheet: renderPeriod,
+    healthSheet: renderHealth,
+    gameSheet: () => { if (!g2048 || g2048.over) newGame(); else drawGame(); },
   }[id];
   if (fill) fill();
   $(id).hidden = false;
@@ -1493,6 +1625,230 @@ function renderMemories() {
     : `<div class="empty"><i>✦</i><b>还没有长期记忆</b>告诉${esc(P().name || 'TA')}第一件关于你的事吧</div>`;
 }
 
+
+// ---- 手机与生活 ----
+const CATS = { out: ['餐饮', '奶茶咖啡', '购物', '交通', '住房', '娱乐', '医疗', '人情', '其他'], in: ['工资', '红包', '转账', '退款', '其他'] };
+const money = n => (Math.round(n * 100) / 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+const addDays = (d, n) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return ymd(x); };
+const dayDiff = (a, b) => Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 864e5);
+const WMO = c => c === 0 ? '晴' : c <= 2 ? '多云' : c === 3 ? '阴' : c <= 48 ? '雾' : c <= 57 ? '毛毛雨' : c <= 67 ? '下雨' : c <= 77 ? '下雪' : c <= 82 ? '阵雨' : c <= 86 ? '阵雪' : '雷雨';
+
+// 经期：用记录推算周期和下次时间
+function periodInfo() {
+  const logs = [...period.logs].sort((a, b) => a.start.localeCompare(b.start));
+  if (!logs.length) return null;
+  const gaps = [];
+  for (let i = 1; i < logs.length; i++) { const g = dayDiff(logs[i - 1].start, logs[i].start); if (g >= 18 && g <= 60) gaps.push(g); }
+  const cycle = gaps.length ? Math.round(gaps.slice(-6).reduce((a, b) => a + b, 0) / Math.min(gaps.length, 6)) : (+period.cycle || 28);
+  const len = +period.len || 5;
+  const last = logs[logs.length - 1], today = ymd(new Date());
+  const day = dayDiff(last.start, today) + 1;
+  const inPeriod = last.end ? today <= last.end : day <= len;
+  const next = addDays(last.start, cycle);
+  const until = dayDiff(today, next);
+  return { cycle, len, last, day, inPeriod, next, until, auto: gaps.length > 0 };
+}
+function periodText(pi = periodInfo()) {
+  if (!pi) return '';
+  if (pi.inPeriod) return `经期第 ${pi.day} 天`;
+  if (pi.until > 0) return `距离下次大约 ${pi.until} 天`;
+  if (pi.until === 0) return '预计今天来';
+  return `比预计晚了 ${-pi.until} 天`;
+}
+function lifeContext() {
+  const nick = P().nick || '对方';
+  const out = [];
+  const w = perm.geo?.w;
+  if (w && Date.now() - w.at < 3 * 36e5) out.push(`${nick}在${perm.geo.city || '当地'}，天气${w.text}，${w.temp}°C`);
+  if (health.share) {
+    const k = ymd(new Date()), n = health.water[k] || 0;
+    out.push(`今天喝了 ${n}/${health.goal} 杯水`);
+    const sl = health.sleep[k];
+    if (sl) out.push(`昨晚睡了 ${sl} 小时`);
+  }
+  if (period.share) { const t = periodText(); if (t) out.push(`经期：${t}`); }
+  const m = ymd(new Date()).slice(0, 7);
+  const spent = ledger.filter(e => e.type === 'out' && e.date.startsWith(m)).reduce((a, e) => a + e.amount, 0);
+  if (spent) out.push(`这个月记账支出 ¥${money(spent)}`);
+  return out.length ? `${nick}今天的状态（自然地关心，别逐条念出来）：\n` + out.map(x => '- ' + x).join('\n') : '';
+}
+
+// 天气：定位后用 open-meteo 取天气，用 bigdatacloud 取城市名（都不需要 Key）
+async function refreshWeather(force = false) {
+  const g = perm.geo;
+  if (!g || (!force && g.w && Date.now() - g.w.at < 30 * 6e4)) return;
+  try {
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${g.lat}&longitude=${g.lon}&current=temperature_2m,weather_code&timezone=auto`);
+    const j = await r.json();
+    g.w = { temp: Math.round(j.current.temperature_2m), text: WMO(j.current.weather_code), at: Date.now() };
+  } catch {}
+  if (!g.city) {
+    try {
+      const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${g.lat}&longitude=${g.lon}&localityLanguage=zh`);
+      const j = await r.json();
+      g.city = j.city || j.locality || j.principalSubdivision || '';
+    } catch {}
+  }
+  await DB.set('perm', perm);
+  if (tab === 'life') renderPerms();
+}
+function askLocation() {
+  if (!navigator.geolocation) { toast('这个浏览器不支持定位'); return; }
+  toast('正在定位…');
+  navigator.geolocation.getCurrentPosition(async pos => {
+    perm.geo = { lat: +pos.coords.latitude.toFixed(2), lon: +pos.coords.longitude.toFixed(2) };
+    await DB.set('perm', perm);
+    renderPerms();
+    await refreshWeather(true);
+    toast(perm.geo.w ? `${perm.geo.city || ''} ${perm.geo.w.text} ${perm.geo.w.temp}°C` : '定位好了');
+  }, () => toast('没拿到定位权限，可以去手机设置里允许'), { timeout: 15000, maximumAge: 6e5 });
+}
+async function askMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast('这个浏览器不支持语音识别，可以用输入法自带的语音输入'); return; }
+  try {
+    const st = await navigator.mediaDevices?.getUserMedia({ audio: true });
+    st?.getTracks().forEach(t => t.stop());
+  } catch { toast('没拿到麦克风权限'); return; }
+  perm.mic = true; await DB.set('perm', perm);
+  applyMic(); renderPerms();
+  toast('输入框旁边多了一个麦克风，点一下开始说话');
+}
+function applyMic() { $('micBtn').hidden = !perm.mic; }
+let rec = null;
+function toggleMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  if (rec) { rec.stop(); return; }
+  rec = new SR();
+  rec.lang = 'zh-CN'; rec.interimResults = true; rec.continuous = false;
+  const base = $('input').value;
+  rec.onresult = e => {
+    const text = [...e.results].map(r => r[0].transcript).join('');
+    $('input').value = base + text; $('input').dispatchEvent(new Event('input'));
+  };
+  rec.onerror = e => { if (e.error !== 'aborted' && e.error !== 'no-speech') toast('语音识别出错了：' + e.error); };
+  rec.onend = () => { rec = null; $('micBtn').classList.remove('on'); };
+  $('micBtn').classList.add('on');
+  rec.start();
+}
+async function askNotify() {
+  if (!('Notification' in window)) { toast('这个浏览器不支持通知'); return; }
+  const r = await Notification.requestPermission();
+  renderPerms();
+  if (r === 'granted') { openSheet('setSheet'); setTimeout(() => $('fOpener').scrollIntoView({ block: 'center' }), 60); toast('想让 TA 在 App 关着时也找你，在这里配一下 Worker'); }
+  else toast('没有通知权限，可以去手机设置里允许');
+}
+function renderPerms() {
+  const g = perm.geo, nperm = 'Notification' in window ? Notification.permission : 'unsupported';
+  const items = [
+    ['geo', '⌖', '定位', g ? (g.w ? `${g.city || ''} ${g.w.text} ${g.w.temp}°C` : g.city || '已开启') : '未授权', !!g],
+    ['album', '▨', '相册', '换头像或背景', false],
+    ['mic', '◖', '麦克风', perm.mic ? '已开启 · 可语音输入' : '点击后才会启用', !!perm.mic],
+    ['notify', '◉', '通知', nperm === 'granted' ? (PS().on ? '已开启 · TA 会主动找你' : '已授权') : nperm === 'denied' ? '已拒绝' : '未授权', nperm === 'granted'],
+  ];
+  $('perms').innerHTML = items.map(([k, ic, t, sub, on]) =>
+    `<button class="perm${on ? ' on' : ''}" type="button" data-perm="${k}"><span class="ic">${ic}</span><span><b>${t}</b><small>${esc(sub)}</small></span></button>`).join('');
+}
+
+// 账单
+let billMonth = ymd(new Date()).slice(0, 7), billType = 'out';
+function fillBillCats() { $('billCat').innerHTML = CATS[billType].map(c => `<option>${c}</option>`).join(''); }
+function renderBill() {
+  const [y, m] = billMonth.split('-').map(Number);
+  $('billMonth').textContent = `${y} 年 ${m} 月`;
+  const list = ledger.filter(e => e.date.startsWith(billMonth)).sort((a, b) => b.date.localeCompare(a.date));
+  const sum = t => list.filter(e => e.type === t).reduce((a, e) => a + e.amount, 0);
+  const out = sum('out');
+  $('billOut').textContent = '¥' + money(out); $('billIn').textContent = '¥' + money(sum('in'));
+  const by = {};
+  for (const e of list) if (e.type === 'out') by[e.cat] = (by[e.cat] || 0) + e.amount;
+  const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  $('billCats').innerHTML = top.map(([c, v]) => `<div class="bar"><span>${esc(c)}</span><i style="width:${Math.max(4, v / top[0][1] * 100)}%"></i><span>¥${money(v)}</span></div>`).join('');
+  $('billList').innerHTML = list.length ? list.slice(0, 80).map(e => `
+    <div class="li"><span><b>${esc(e.cat)}</b>${e.note ? ' · ' + esc(e.note) : ''}<small>${e.date.slice(5)}${e.src ? ' · ' + esc(e.src) : ''}</small></span><span class="amt${e.type === 'in' ? ' in' : ''}">${e.type === 'in' ? '+' : '−'}${money(e.amount)}</span><button class="del" type="button" data-billdel="${e.id}" aria-label="删除">✕</button></div>`).join('')
+    : '<p class="note">这个月还没有记账。</p>';
+  if (!$('billDate').value) $('billDate').value = ymd(new Date());
+}
+
+// 经期
+function renderPeriod() {
+  const pi = periodInfo();
+  $('perCycle').value = pi?.auto ? pi.cycle : period.cycle; $('perCycle').disabled = !!pi?.auto;
+  $('perCycle').title = pi?.auto ? '按你的记录自动算的' : '';
+  $('perLen').value = period.len; $('perShare').checked = !!period.share;
+  if (!pi) { $('perLabel').textContent = '现在'; $('perMain').textContent = '还没有记录'; $('perSub').textContent = '来的那天点"今天来了"就行'; }
+  else {
+    $('perLabel').textContent = pi.inPeriod ? '正在经期' : '下次预计';
+    $('perMain').textContent = periodText(pi);
+    const d = new Date(pi.next + 'T00:00:00');
+    $('perSub').textContent = `预计 ${d.getMonth() + 1} 月 ${d.getDate()} 日 · 平均周期 ${pi.cycle} 天`;
+  }
+  const logs = [...period.logs].sort((a, b) => b.start.localeCompare(a.start));
+  $('perList').innerHTML = logs.length ? logs.map(l => `
+    <div class="li"><span><b>${l.start}</b>${l.end ? ` → ${l.end.slice(5)}` : ''}<small>${l.end ? `${dayDiff(l.start, l.end) + 1} 天` : ''}</small></span><button class="del" type="button" data-perdel="${l.start}" aria-label="删除">✕</button></div>`).join('')
+    : '<p class="note">还没有记录。</p>';
+}
+async function savePeriod() { await DB.set('period', period); renderPeriod(); }
+
+// 健康
+function renderHealth() {
+  const k = ymd(new Date());
+  $('waterNum').textContent = health.water[k] || 0;
+  $('waterGoalTxt').textContent = ` / ${health.goal} 杯`;
+  $('waterGoal').value = health.goal;
+  $('sleepHrs').value = health.sleep[k] ?? '';
+  $('healthShare').checked = !!health.share;
+  const days = [...Array(7)].map((_, i) => addDays(k, i - 6));
+  const max = Math.max(health.goal, ...days.map(d => health.water[d] || 0));
+  $('waterWeek').innerHTML = days.map(d => `<div><i style="height:${Math.max(3, (health.water[d] || 0) / max * 50)}px"></i>${WEEK[new Date(d + 'T00:00:00').getDay()]}</div>`).join('');
+}
+async function saveHealth() { await DB.set('health', health); renderHealth(); }
+
+// 小游戏 2048
+let g2048 = null;
+function newGame() { g2048 = { b: Array(16).fill(0), score: 0, over: false }; addGameTile(); addGameTile(); drawGame(); }
+function addGameTile() {
+  const empty = g2048.b.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+  if (empty.length) g2048.b[empty[Math.floor(Math.random() * empty.length)]] = Math.random() < 0.9 ? 2 : 4;
+}
+function slideRow(row) {
+  const a = row.filter(Boolean);
+  for (let i = 0; i < a.length - 1; i++) if (a[i] === a[i + 1]) { a[i] *= 2; g2048.score += a[i]; a.splice(i + 1, 1); }
+  while (a.length < 4) a.push(0);
+  return a;
+}
+function canMoveGame() {
+  const b = g2048.b;
+  for (let i = 0; i < 16; i++) { if (!b[i]) return true; if (i % 4 < 3 && b[i] === b[i + 1]) return true; if (i < 12 && b[i] === b[i + 4]) return true; }
+  return false;
+}
+function moveGame(dir) { // 0 左 1 右 2 上 3 下
+  if (!g2048 || g2048.over) return;
+  const before = g2048.b.join();
+  for (let k = 0; k < 4; k++) {
+    const idx = [0, 1, 2, 3].map(j => dir < 2 ? k * 4 + j : j * 4 + k);
+    if (dir === 1 || dir === 3) idx.reverse();
+    const out = slideRow(idx.map(i => g2048.b[i]));
+    idx.forEach((i, j) => { g2048.b[i] = out[j]; });
+  }
+  if (g2048.b.join() === before) return;
+  addGameTile();
+  if (!canMoveGame()) g2048.over = true;
+  drawGame();
+}
+async function drawGame() {
+  $('gBoard').innerHTML = g2048.b.map(v => {
+    const l = v ? Math.log2(v) : 0;
+    return `<div class="gc${l >= 4 ? ' hi' : ''}" style="${v ? `background:color-mix(in srgb, var(--accent) ${Math.min(100, l * 9)}%, var(--card))` : ''}">${v || ''}</div>`;
+  }).join('');
+  $('gScore').textContent = g2048.score;
+  const best = Math.max(await DB.get('game2048best').catch(() => 0) || 0, g2048.score);
+  $('gBest').textContent = best;
+  DB.set('game2048best', best).catch(() => {});
+  $('gMsg').textContent = g2048.b.includes(2048) ? '合出 2048 了！' : g2048.over ? '走不动了，再来一局？' : '滑动方块，相同数字会合在一起';
+}
+
 // ---- 底部四栏 ----
 let tab = 'chat';
 const VIEWS = { chat: 'vChat', mem: 'vMem', life: 'vLife', me: 'vMe' };
@@ -1508,17 +1864,24 @@ function showTab(t) {
   else if (t === 'life') renderLife();
   else if (t === 'me') renderMe();
 }
+// 第四项以 # 开头的是 App 里的面板，其余是外部链接
 const SERVICES = [
-  ['餐', '外卖', '美团外卖', 'https://h5.waimai.meituan.com/'],
-  ['车', '打车', '高德地图', 'https://m.amap.com/'],
-  ['书', '看书', '微信读书', 'https://weread.qq.com/'],
-  ['♪', '抖音', '网页版', 'https://www.douyin.com/'],
-  ['红', '小红书', '网页版', 'https://www.xiaohongshu.com/explore'],
-  ['淘', '淘宝', '逛一逛', 'https://m.taobao.com/'],
-  ['云', '网易云', '听歌', 'https://music.163.com/'],
-  ['京', '京东', '买东西', 'https://m.jd.com/'],
-  ['晴', '天气', '中国天气', 'https://m.weather.com.cn/'],
+  ['¥', '账单', '微信 / 支付宝手记', '#billSheet'],
+  ['◐', '经期', '仅存本机', '#periodSheet'],
+  ['♡', '健康', '喝水与睡眠', '#healthSheet'],
+  ['餐', '外卖', '打开美团外卖', 'https://h5.waimai.meituan.com/'],
+  ['车', '打车', '打开高德地图', 'https://m.amap.com/'],
+  ['书', '看书', '打开微信读书', 'https://weread.qq.com/'],
+  ['♪', '抖音', '打开网页版', 'https://www.douyin.com/'],
+  ['红', '小红书', '打开网页版', 'https://www.xiaohongshu.com/explore'],
+  ['玩', '小游戏', '休息一下', '#gameSheet'],
 ];
+function svcSub(href, sub) {
+  if (href === '#billSheet') { const m = ymd(new Date()).slice(0, 7); const v = ledger.filter(e => e.type === 'out' && e.date.startsWith(m)).reduce((a, e) => a + e.amount, 0); return v ? `本月支出 ¥${money(v)}` : sub; }
+  if (href === '#periodSheet') return periodText() || sub;
+  if (href === '#healthSheet') return `今天 ${health.water[ymd(new Date())] || 0}/${health.goal} 杯水`;
+  return sub;
+}
 function renderLife() {
   const next = upcoming(30)[0];
   const open = wishes.filter(w => !w.done).length;
@@ -1534,8 +1897,11 @@ function renderLife() {
     `<button class="tile" type="button" data-open="${id}"><span class="ic">${ic}</span><span><b>${t}</b><small>${esc(sub)}</small></span></button>`).join('')
     + `<button class="tile" type="button" data-prefill="帮我画一张："><span class="ic">✎</span><span><b>画一张</b><small>${imgReady ? '让 TA 画给你' : '先在设置里填画图 Key'}</small></span></button>`
     + `<button class="tile" type="button" data-prefill="帮我写一篇小红书："><span class="ic">✍</span><span><b>写小红书</b><small>让 TA 帮你写文案</small></span></button>`;
-  $('svc').innerHTML = SERVICES.map(([ic, t, sub, href]) =>
-    `<a href="${href}" target="_blank" rel="noopener noreferrer"><span class="ic">${ic}</span><b>${t}</b><small>${sub}</small></a>`).join('');
+  $('svc').innerHTML = SERVICES.map(([ic, t, sub, href]) => href.startsWith('#')
+    ? `<button type="button" data-open="${href.slice(1)}"><span class="ic">${ic}</span><b>${t}</b><small>${esc(svcSub(href, sub))}</small></button>`
+    : `<a href="${href}" target="_blank" rel="noopener noreferrer"><span class="ic">${ic}</span><b>${t}</b><small>${sub}</small></a>`).join('');
+  renderPerms();
+  refreshWeather();
 }
 function renderMe() {
   const p = P(), days = daysTogether();
@@ -1611,7 +1977,7 @@ async function importFile(file) {
 async function exportAll() {
   const chats = [];
   for (const c of index) { const full = await DB.get('chat:' + c.id); if (full) chats.push(full); }
-  const data = { app: '知言', exported: new Date().toISOString(), persona: P(), memories, diary, events, wishes, songs, chats };
+  const data = { app: '知言', exported: new Date().toISOString(), persona: P(), memories, diary, events, wishes, songs, ledger, period, health, chats };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
   a.download = `知言备份-${ymd(new Date())}.json`;
@@ -1626,6 +1992,78 @@ $('installBtn').onclick = () => {
   toast(/iPhone|iPad/.test(navigator.userAgent) ? '用 Safari 点"分享" → "添加到主屏幕"' : '点浏览器菜单 → "安装应用"');
 };
 $('meExport').onclick = () => exportAll();
+$('perms').addEventListener('click', e => {
+  const b = e.target.closest('[data-perm]'); if (!b) return;
+  const k = b.dataset.perm;
+  if (k === 'geo') askLocation();
+  else if (k === 'album') { openSheet('personaSheet'); setTimeout(() => $('wallPick').scrollIntoView({ block: 'center' }), 60); }
+  else if (k === 'mic') perm.mic ? toast('已经开着了，输入框旁边的麦克风就是') : askMic();
+  else if (k === 'notify') askNotify();
+});
+$('micBtn').addEventListener('pointerdown', e => e.preventDefault());
+$('micBtn').onclick = toggleMic;
+$('billType').addEventListener('click', e => {
+  const b = e.target.closest('[data-bt]'); if (!b) return;
+  billType = b.dataset.bt; document.querySelectorAll('#billType button').forEach(x => x.classList.toggle('on', x === b)); fillBillCats();
+});
+$('billPrev').onclick = () => { const [y, m] = billMonth.split('-').map(Number); const d = new Date(y, m - 2, 1); billMonth = ymd(d).slice(0, 7); renderBill(); };
+$('billNext').onclick = () => { const [y, m] = billMonth.split('-').map(Number); const d = new Date(y, m, 1); billMonth = ymd(d).slice(0, 7); renderBill(); };
+$('billAdd').onclick = async () => {
+  const amount = Math.round(Math.abs(parseFloat($('billAmt').value)) * 100) / 100;
+  if (!amount) { toast('先填金额'); return; }
+  const date = $('billDate').value || ymd(new Date());
+  ledger.unshift({ id: uid(), date, type: billType, amount, cat: $('billCat').value, src: $('billSrc').value, note: $('billNote').value.trim() });
+  await DB.set('ledger', ledger);
+  $('billAmt').value = ''; $('billNote').value = '';
+  billMonth = date.slice(0, 7); renderBill(); toast('记好了');
+};
+$('billList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-billdel]'); if (!b) return;
+  ledger = ledger.filter(x => x.id !== b.dataset.billdel); await DB.set('ledger', ledger); renderBill();
+});
+$('perStart').onclick = async () => {
+  const t = ymd(new Date());
+  if (period.logs.some(l => l.start === t)) { toast('今天已经记过了'); return; }
+  period.logs.push({ start: t }); await savePeriod(); toast('记下了，这几天照顾好自己');
+};
+$('perEnd').onclick = async () => {
+  const last = [...period.logs].sort((a, b) => b.start.localeCompare(a.start))[0];
+  if (!last) { toast('还没有记开始的那天'); return; }
+  last.end = ymd(new Date()); await savePeriod(); toast('记下了');
+};
+$('perAddPast').onclick = async () => {
+  const d = $('perPast').value;
+  if (!d) { toast('先选日期'); return; }
+  if (!period.logs.some(l => l.start === d)) period.logs.push({ start: d });
+  $('perPast').value = ''; await savePeriod();
+};
+$('perList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-perdel]'); if (!b) return;
+  period.logs = period.logs.filter(l => l.start !== b.dataset.perdel); await savePeriod();
+});
+$('perCycle').onchange = async () => { period.cycle = Math.min(60, Math.max(18, +$('perCycle').value || 28)); await savePeriod(); };
+$('perLen').onchange = async () => { period.len = Math.min(12, Math.max(2, +$('perLen').value || 5)); await savePeriod(); };
+$('perShare').onchange = async () => { period.share = $('perShare').checked; await savePeriod(); };
+$('waterPlus').onclick = async () => { const k = ymd(new Date()); health.water[k] = (health.water[k] || 0) + 1; await saveHealth(); if (health.water[k] === health.goal) toast('今天的水喝够啦'); };
+$('waterMinus').onclick = async () => { const k = ymd(new Date()); health.water[k] = Math.max(0, (health.water[k] || 0) - 1); await saveHealth(); };
+$('waterGoal').onchange = async () => { health.goal = Math.min(20, Math.max(1, +$('waterGoal').value || 8)); await saveHealth(); };
+$('sleepHrs').onchange = async () => { const v = parseFloat($('sleepHrs').value); const k = ymd(new Date()); if (v >= 0 && v <= 16) health.sleep[k] = v; else delete health.sleep[k]; await saveHealth(); };
+$('healthShare').onchange = async () => { health.share = $('healthShare').checked; await saveHealth(); };
+$('gNew').onclick = newGame;
+{
+  let sx = 0, sy = 0;
+  $('gBoard').addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; });
+  $('gBoard').addEventListener('pointerup', e => {
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    moveGame(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 0 : 1) : (dy < 0 ? 2 : 3));
+  });
+  document.addEventListener('keydown', e => {
+    if ($('gameSheet').hidden) return;
+    const d = { ArrowLeft: 0, ArrowRight: 1, ArrowUp: 2, ArrowDown: 3 }[e.key];
+    if (d !== undefined) { e.preventDefault(); moveGame(d); }
+  });
+}
 // 打字时收起底部栏；点发送不让输入框失焦，避免底部栏弹回来把按钮挤走
 let typingTimer = 0;
 $('input').addEventListener('focus', () => { clearTimeout(typingTimer); document.body.classList.add('typing'); });
@@ -1823,10 +2261,16 @@ $('diaryList').addEventListener('click', async e => {
     events = await DB.get('events') || [];
     wishes = await DB.get('wishes') || [];
     songs = await DB.get('songs') || [];
+    ledger = await DB.get('ledger') || [];
+    period = { ...period, ...(await DB.get('period') || {}) };
+    health = { ...health, ...(await DB.get('health') || {}) };
+    perm = await DB.get('perm') || {};
     tracks = await DB.get('tracks') || [];
     for (const p of Object.keys(PROVIDERS)) configured[p] = !!(await loadSecret(p));
     await loadWall();
     await refreshImgReady();
+    applyMic();
+    refreshWeather();
   } catch {
     toast('本地存储不可用，数据可能保存不了');
   }

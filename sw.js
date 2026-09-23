@@ -1,5 +1,5 @@
 // 每次更新文件后把版本号 +1，手机上才会拿到新版本
-const CACHE = 'zhiyan-v7';
+const CACHE = 'zhiyan-v8';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/marked.min.js', './vendor/purify.min.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
