@@ -1,0 +1,1675 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1c1e" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="知言">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>知言</title>
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<style>
+  :root {
+    --ground: #f6f4ef;
+    --panel: #eeebe4;
+    --card: #ffffff;
+    --ink: #23221f;
+    --muted: #79756c;
+    --line: #e1ddd4;
+    --accent: #3a6b5b;
+    --accent-ink: #ffffff;
+    --tint: color-mix(in srgb, var(--accent) 10%, var(--card));
+    --user-bubble: #e8e4da;
+    --code-bg: #1f2226;
+    --code-ink: #e3e6ea;
+    --danger: #b3413a;
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    --serif: "Songti SC", "Noto Serif SC", "Source Han Serif SC", STSong, Georgia, serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #1b1c1e; --panel: #151617; --card: #242528; --ink: #e8e6e1;
+      --muted: #9a968e; --line: #303134; --accent: #7fbfa8; --accent-ink: #15181a;
+      --user-bubble: #2d2e31; --code-bg: #111214; --code-ink: #dfe3e8; --danger: #e07a72;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--ground); color: var(--ink); font: 15px/1.65 var(--sans); -webkit-text-size-adjust: 100%; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .app { display: flex; height: 100%; }
+
+  .av { flex: none; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-family: var(--serif); }
+  .av img { width: 100%; height: 100%; object-fit: cover; }
+
+  .side { width: 272px; flex: none; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom)); }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px; }
+  .brand b { font-family: var(--serif); font-size: 19px; font-weight: 500; display: block; }
+  .brand small { color: var(--muted); font-size: 12px; display: block; }
+  .new { width: 100%; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 9px 12px; text-align: left; }
+  .list-title { font-size: 12px; color: var(--muted); letter-spacing: .06em; margin: 16px 6px 6px; }
+  .list { flex: 1; overflow-y: auto; display: grid; align-content: start; gap: 2px; min-height: 60px; }
+  .item { display: flex; align-items: center; gap: 6px; border-radius: 8px; padding: 7px 8px; }
+  .item:hover, .item.on { background: var(--card); }
+  .item span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; cursor: pointer; }
+  .item small { color: var(--muted); font-size: 11px; }
+  .item .del { opacity: 0; border: 0; background: none; color: var(--muted); padding: 0 4px; }
+  .item:hover .del, .item.on .del { opacity: 1; }
+  .side-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .side-foot button { border: 0; background: none; color: var(--muted); text-align: left; padding: 7px 6px; border-radius: 8px; font-size: 14px; }
+  .side-foot button:hover { background: var(--card); color: var(--ink); }
+  .side-foot .wide { grid-column: 1 / -1; }
+  .side-foot .model { font-size: 11px; color: var(--muted); padding: 2px 6px 0; grid-column: 1 / -1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+  .top { display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top)) 12px 10px 16px; border-bottom: 1px solid var(--line); }
+  .top .menu { display: none; border: 0; background: none; font-size: 20px; padding: 0 4px; }
+  .top .who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: 0; background: none; text-align: left; padding: 0; }
+  .top .who b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .top .who small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icon-btn { border: 0; background: none; width: 36px; height: 36px; border-radius: 10px; font-size: 18px; color: var(--muted); display: grid; place-items: center; }
+  .icon-btn:hover { background: var(--card); color: var(--ink); }
+
+  .scroll { flex: 1; overflow-y: auto; }
+  .thread { max-width: 760px; margin: 0 auto; padding: 24px 20px 12px; display: grid; gap: 20px; }
+  .older { justify-self: center; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 4px 14px; font-size: 13px; color: var(--muted); }
+
+  .home { max-width: 520px; margin: 0 auto; padding: 8vh 20px 20px; text-align: center; }
+  .home .av { margin: 0 auto 14px; }
+  .home h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(24px, 5vw, 30px); margin: 0 0 4px; text-wrap: balance; }
+  .home > p { color: var(--muted); margin: 0 0 20px; }
+  .agenda { text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 0 0 18px; display: grid; gap: 6px; }
+  .agenda b { font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: .06em; }
+  .agenda div { display: flex; gap: 10px; font-size: 14px; }
+  .agenda span:first-child { color: var(--accent); min-width: 58px; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 14px; font-size: 14px; color: var(--muted); }
+  .chip:hover { color: var(--ink); border-color: var(--muted); }
+
+  .msg.user { justify-self: end; max-width: 82%; background: var(--user-bubble); padding: 9px 14px; border-radius: 18px 18px 4px 18px; white-space: pre-wrap; word-break: break-word; }
+  .msg.bot { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; }
+  .msg.bot .av { width: 30px; height: 30px; font-size: 14px; margin-top: 2px; }
+  .msg.bot .body { word-break: break-word; }
+  .msg.bot .body > :first-child { margin-top: 0; }
+  .msg.bot .body > :last-child { margin-bottom: 0; }
+  .msg.bot pre { position: relative; background: var(--code-bg); color: var(--code-ink); padding: 14px; border-radius: 10px; overflow-x: auto; font: 13px/1.55 var(--mono); }
+  .msg.bot code { font-family: var(--mono); font-size: .92em; }
+  .msg.bot :not(pre) > code { background: var(--user-bubble); padding: 1px 5px; border-radius: 4px; }
+  .msg.bot table { border-collapse: collapse; display: block; overflow-x: auto; }
+  .msg.bot th, .msg.bot td { border: 1px solid var(--line); padding: 6px 10px; }
+  .msg.bot blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
+  .msg.bot img { max-width: 100%; }
+  .copy { position: absolute; top: 8px; right: 8px; border: 0; border-radius: 6px; background: rgba(255,255,255,.12); color: var(--code-ink); font-size: 12px; padding: 3px 8px; }
+  .acts { display: flex; gap: 4px; margin-top: 4px; }
+  .acts button { border: 0; background: none; color: var(--muted); font-size: 12px; padding: 2px 6px; border-radius: 6px; }
+  .acts button:hover { background: var(--user-bubble); color: var(--ink); }
+  .think { margin-bottom: 8px; border-left: 2px solid var(--line); padding-left: 12px; color: var(--muted); font-size: 14px; }
+  .think summary { cursor: pointer; font-size: 13px; }
+  .think div { white-space: pre-wrap; margin-top: 6px; }
+  .err { color: var(--danger); font-size: 14px; }
+  .cursor::after { content: "▍"; animation: blink 1s steps(2) infinite; color: var(--muted); }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .cards { display: grid; gap: 8px; margin-top: 10px; }
+  .card { background: var(--tint); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; font-size: 14px; }
+  .card .k { font-size: 12px; color: var(--accent); font-weight: 600; letter-spacing: .04em; }
+  .card .t { font-weight: 600; }
+  .card .s { color: var(--muted); font-size: 13px; }
+  .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .links a { text-decoration: none; font-size: 12px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 10px; }
+  .links a:hover { border-color: var(--accent); color: var(--accent); }
+
+  .player { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom)); width: min(420px, calc(100% - 32px)); background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 4px 18px rgba(0,0,0,.08); padding: 6px 8px 6px 16px; display: flex; align-items: center; gap: 8px; font-size: 14px; z-index: 5; }
+  .player span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player button { border: 0; background: var(--ground); border-radius: 999px; width: 32px; height: 32px; }
+
+  .composer { padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .box { max-width: 760px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 10px 10px 10px 16px; display: flex; align-items: flex-end; gap: 8px; box-shadow: 0 2px 12px rgba(0,0,0,.04); }
+  .box textarea { flex: 1; border: 0; outline: 0; resize: none; background: none; max-height: 200px; padding: 6px 0; font-size: 16px; }
+  .send { flex: none; width: 36px; height: 36px; border-radius: 12px; border: 0; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
+  .send:disabled { opacity: .35; cursor: default; }
+  .send svg { width: 18px; height: 18px; }
+
+  .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: grid; place-items: center; padding: 16px; z-index: 30; }
+  .sheet { width: 100%; max-width: 480px; max-height: calc(100vh - 32px); overflow-y: auto; background: var(--card); border-radius: 18px; padding: 20px; display: grid; gap: 14px; }
+  .sheet header { display: flex; align-items: center; justify-content: space-between; }
+  .sheet h2 { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 20px; }
+  .sheet h3 { margin: 4px 0 0; font-size: 14px; }
+  .x { border: 0; background: none; font-size: 20px; color: var(--muted); }
+  .field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .field input, .field textarea, .field select, .plain { border: 1px solid var(--line); background: var(--ground); border-radius: 8px; padding: 8px 10px; color: var(--ink); font-size: 15px; min-width: 0; }
+  .field textarea { resize: vertical; min-height: 64px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .seg button { border: 1px solid var(--line); background: var(--ground); border-radius: 8px; padding: 7px 4px; font-size: 13px; }
+  .seg button.on { border-color: var(--accent); background: var(--card); color: var(--accent); font-weight: 600; }
+  .seg button small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row > input.plain { flex: 1; }
+  .btn { border: 1px solid var(--line); background: none; border-radius: 8px; padding: 7px 14px; white-space: nowrap; }
+  .btn.primary { border: 0; background: var(--accent); color: var(--accent-ink); }
+  .btn.danger { color: var(--danger); }
+  .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; }
+  .toggle small { display: block; color: var(--muted); font-size: 12px; }
+  .toggle input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+  .note { font-size: 12px; color: var(--muted); margin: 0; }
+  .status { font-size: 13px; color: var(--muted); min-height: 1em; }
+  .stack { display: grid; gap: 6px; }
+  .li { display: flex; gap: 8px; align-items: center; background: var(--ground); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+  .li > span { flex: 1; min-width: 0; word-break: break-word; }
+  .li small { color: var(--muted); font-size: 11px; display: block; }
+  .li .links { margin-top: 4px; }
+  .li button.del { border: 0; background: none; color: var(--muted); }
+  .li.done > span > b { text-decoration: line-through; color: var(--muted); font-weight: 400; }
+  .li input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+
+  .persona-top { display: flex; gap: 14px; align-items: center; }
+  .persona-top .av { width: 64px; height: 64px; font-size: 26px; border: 0; padding: 0; }
+  .swatches { display: flex; gap: 10px; }
+  .swatches button { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--card); box-shadow: 0 0 0 1px var(--line); }
+  .swatches button.on { box-shadow: 0 0 0 2px var(--ink); }
+
+  .moods { display: flex; gap: 6px; flex-wrap: wrap; }
+  .moods button { border: 1px solid var(--line); background: var(--ground); border-radius: 10px; padding: 6px 10px; font-size: 20px; line-height: 1; }
+  .moods button.on { border-color: var(--accent); background: var(--card); }
+
+  .cal-head { display: flex; align-items: center; justify-content: space-between; }
+  .cal-head b { font-family: var(--serif); font-weight: 500; font-size: 17px; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+  .cal .wd { font-size: 12px; color: var(--muted); padding-bottom: 2px; }
+  .cal button { border: 0; background: none; border-radius: 10px; aspect-ratio: 1; max-width: 100%; font-size: 14px; display: grid; place-items: center; position: relative; font-variant-numeric: tabular-nums; }
+  .cal button:hover { background: var(--ground); }
+  .cal button.today { color: var(--accent); font-weight: 700; }
+  .cal button.sel { background: var(--accent); color: var(--accent-ink); }
+  .cal button.has::after { content: ""; position: absolute; bottom: 5px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+  .cal button.sel.has::after { background: var(--accent-ink); }
+
+  .toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--ground); padding: 8px 16px; border-radius: 999px; font-size: 14px; z-index: 40; white-space: nowrap; }
+
+
+  /* 毛玻璃 */
+  .wall { display: none; }
+  html.glass {
+    --card: rgba(255,255,255,.55); --panel: rgba(255,255,255,.42); --ground: rgba(255,255,255,.5);
+    --line: rgba(255,255,255,.7); --muted: #635f6b; --ink: #1f1d24;
+    --user-bubble: color-mix(in srgb, var(--accent) 18%, rgba(255,255,255,.72));
+    --tint: color-mix(in srgb, var(--accent) 10%, rgba(255,255,255,.5));
+    --edge: inset 0 1px 0 rgba(255,255,255,.75), 0 8px 30px rgba(40,34,70,.10);
+    --veil: rgba(255,255,255,.10);
+    --wall-bg:
+      radial-gradient(55% 45% at 10% 6%, color-mix(in srgb, var(--accent) 50%, #fff) 0%, transparent 72%),
+      radial-gradient(50% 40% at 94% 16%, #f8c8d8 0%, transparent 72%),
+      radial-gradient(60% 50% at 84% 94%, #c4d6ff 0%, transparent 72%),
+      radial-gradient(50% 42% at 6% 90%, #ffe0c2 0%, transparent 72%),
+      linear-gradient(165deg, #f7f1f5, #edf0f8);
+  }
+  @media (prefers-color-scheme: dark) {
+    html.glass {
+      --card: rgba(34,33,42,.55); --panel: rgba(24,23,30,.5); --ground: rgba(255,255,255,.07);
+      --line: rgba(255,255,255,.12); --muted: #aaa5b4; --ink: #efedf3;
+      --user-bubble: color-mix(in srgb, var(--accent) 26%, rgba(40,38,50,.7));
+      --tint: color-mix(in srgb, var(--accent) 14%, rgba(34,33,42,.5));
+      --edge: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 30px rgba(0,0,0,.35);
+      --veil: rgba(0,0,0,.30);
+      --wall-bg:
+        radial-gradient(55% 45% at 10% 6%, color-mix(in srgb, var(--accent) 40%, #14131a) 0%, transparent 72%),
+        radial-gradient(50% 40% at 94% 16%, #4a2a45 0%, transparent 72%),
+        radial-gradient(60% 50% at 84% 94%, #1f2e5a 0%, transparent 72%),
+        radial-gradient(50% 42% at 6% 90%, #3b2a22 0%, transparent 72%),
+        linear-gradient(165deg, #15141b, #0f1118);
+    }
+  }
+  html.glass body { background: #e9e6ee; }
+  @media (prefers-color-scheme: dark) { html.glass body { background: #111016; } }
+  html.glass .wall { display: block; position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+  html.glass .wall i { position: absolute; inset: -60px; background: var(--wall-bg); background-size: cover; background-position: center; filter: blur(var(--wall-blur, 0px)); }
+  html.glass .wall::after { content: ""; position: absolute; inset: 0; background: var(--veil); }
+  html.glass .side, html.glass .top, html.glass .box, html.glass .player, html.glass .agenda, html.glass .chip,
+  html.glass .msg.user, html.glass .msg.bot .body, html.glass .toast {
+    -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%);
+  }
+  html.glass .side { border-right-color: var(--line); box-shadow: var(--edge); }
+  html.glass .top { background: var(--panel); border-bottom-color: var(--line); }
+  html.glass .box, html.glass .player, html.glass .agenda { box-shadow: var(--edge); }
+  html.glass .msg.user { border: 1px solid var(--line); box-shadow: var(--edge); }
+  html.glass .msg.bot .body { background: var(--card); border: 1px solid var(--line); border-radius: 4px 18px 18px 18px; padding: 9px 14px; box-shadow: var(--edge); }
+  html.glass .card { box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+  html.glass .sheet-bg { background: rgba(20,18,30,.18); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  html.glass .sheet { background: color-mix(in srgb, var(--card) 80%, transparent); border: 1px solid var(--line); box-shadow: var(--edge);
+    -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
+  html.glass .toast { background: rgba(30,28,40,.72); color: #fff; }
+  html.glass .item:hover, html.glass .item.on, html.glass .side-foot button:hover, html.glass .icon-btn:hover { background: rgba(255,255,255,.45); }
+  @media (prefers-color-scheme: dark) { html.glass .item:hover, html.glass .item.on, html.glass .side-foot button:hover, html.glass .icon-btn:hover { background: rgba(255,255,255,.08); } }
+  html.glass .home h1 { text-shadow: 0 1px 12px rgba(255,255,255,.5); }
+  .seg.two { grid-template-columns: 1fr 1fr; }
+  .card .pic { display: block; width: 100%; max-width: 360px; aspect-ratio: 1; object-fit: cover; border-radius: 10px; margin-top: 6px; background: var(--ground); cursor: zoom-in; }
+  .card .ph { width: 100%; max-width: 360px; aspect-ratio: 1; border-radius: 10px; margin-top: 6px; background: linear-gradient(110deg, var(--ground) 30%, color-mix(in srgb, var(--accent) 16%, var(--ground)) 50%, var(--ground) 70%); background-size: 250% 100%; animation: shimmer 1.6s linear infinite; }
+  @keyframes shimmer { to { background-position: -250% 0; } }
+  .links button { font-size: 12px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 10px; }
+  .pro { font-size: 11px; color: var(--accent); letter-spacing: .04em; margin: 0 0 4px 2px; }
+  .lightbox { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.82); display: grid; place-items: center; padding: 16px; }
+  .lightbox img { max-width: 100%; max-height: 100%; border-radius: 12px; }
+  .range { width: 100%; accent-color: var(--accent); }
+
+  .scrim { display: none; }
+  @media (max-width: 760px) {
+    .side { position: fixed; inset: 0 auto 0 0; z-index: 20; transform: translateX(-100%); transition: transform .2s; box-shadow: 4px 0 20px rgba(0,0,0,.15); }
+    .app.open .side { transform: none; }
+    .app.open .scrim { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 19; }
+    .top .menu { display: block; }
+    .item .del { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .side { transition: none; } .cursor::after, .card .ph { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wall" id="wall" aria-hidden="true"><i id="wallImg"></i></div>
+<div class="app" id="app">
+  <aside class="side">
+    <div class="brand"><span class="av" id="sideAv" style="width:36px;height:36px;font-size:16px"></span><span><b id="sideName">知言</b><small id="sideDays"></small></span></div>
+    <button class="new" id="newBtn" type="button">＋ 新对话</button>
+    <div class="list-title">聊天记录</div>
+    <div class="list" id="list"></div>
+    <div class="side-foot">
+      <button type="button" data-open="personaSheet">♡ TA 的设定</button>
+      <button type="button" data-open="calSheet">▦ 日历</button>
+      <button type="button" data-open="musicSheet">♪ 一起听</button>
+      <button type="button" data-open="wishSheet">☆ 心愿单</button>
+      <button type="button" data-open="memSheet">◇ 记忆</button>
+      <button type="button" data-open="diarySheet">☾ 心情日记</button>
+      <button type="button" class="wide" data-open="setSheet">⚙ 设置 · 模型与 Key</button>
+      <div class="model" id="sideModel"></div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <div class="top">
+      <button class="menu" id="menuBtn" type="button" aria-label="打开侧边栏">☰</button>
+      <button class="who" type="button" data-open="personaSheet"><span class="av" id="topAv" style="width:34px;height:34px;font-size:15px"></span><span style="min-width:0"><b id="topName">知言</b><small id="topSub"></small></span></button>
+      <button class="icon-btn" type="button" data-open="calSheet" aria-label="日历">▦</button>
+      <button class="icon-btn" type="button" id="newBtn2" aria-label="新对话">＋</button>
+    </div>
+    <div class="scroll" id="scroll">
+      <div class="home" id="home"></div>
+      <div class="thread" id="thread"></div>
+    </div>
+    <div class="player" id="player" hidden>
+      <span id="nowName">♪</span>
+      <button type="button" id="playToggle" aria-label="暂停">❚❚</button>
+      <button type="button" id="playNext" aria-label="下一首">▸▸</button>
+      <button type="button" id="playClose" aria-label="关闭播放">✕</button>
+    </div>
+    <div class="composer">
+      <div class="box">
+        <textarea id="input" rows="1" aria-label="输入消息"></textarea>
+        <button class="send" id="sendBtn" type="button" aria-label="发送" disabled></button>
+      </div>
+    </div>
+  </main>
+</div>
+<audio id="audio" preload="none"></audio>
+
+<div class="sheet-bg" id="personaSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="TA 的设定">
+    <header><h2>TA 的设定</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="persona-top">
+      <button class="av" id="pAvBtn" type="button" aria-label="更换头像"></button>
+      <div class="stack" style="flex:1">
+        <div class="row"><button class="btn" type="button" id="pAvPick">换头像</button><button class="btn" type="button" id="pAvReset">用默认</button></div>
+        <input type="file" id="pAvFile" accept="image/*" hidden>
+        <p class="note">头像只保存在这台设备上。</p>
+      </div>
+    </div>
+    <div class="grid2">
+      <label class="field">TA 的名字<input id="pName" maxlength="12"></label>
+      <label class="field">TA 是你的<select id="pRel"><option>恋人</option><option>好朋友</option><option>家人</option><option>知己</option></select></label>
+      <label class="field">TA 怎么叫你<input id="pNick" maxlength="12" placeholder="比如：宝贝、小鱼"></label>
+      <label class="field">在一起的日子<input id="pSince" type="date"></label>
+    </div>
+    <label class="field">TA 的性格和说话方式<textarea id="pTraits" maxlength="400"></textarea></label>
+    <div class="field">主题色<div class="swatches" id="swatches"></div></div>
+    <div class="field">风格<div class="seg two" id="styleSeg"><button type="button" data-style="glass">毛玻璃</button><button type="button" data-style="plain">简洁</button></div></div>
+    <div class="field" id="wallField">背景图
+      <div class="row"><button class="btn" type="button" id="wallPick">换一张照片</button><button class="btn" type="button" id="wallReset">用默认渐变</button><input type="file" id="wallFile" accept="image/*" hidden></div>
+      <label class="field" style="margin-top:6px">背景模糊<input class="range" type="range" id="wallBlur" min="0" max="40" step="2"></label>
+    </div>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="pSave">保存</button></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="calSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="日历">
+    <header><h2>日历</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="cal-head"><button class="icon-btn" type="button" id="calPrev" aria-label="上个月">‹</button><b id="calTitle"></b><button class="icon-btn" type="button" id="calNext" aria-label="下个月">›</button></div>
+    <div class="cal" id="calGrid"></div>
+    <h3 id="calDayTitle"></h3>
+    <div class="stack" id="calDay"></div>
+    <div class="grid2">
+      <label class="field">事情<input id="evTitle" maxlength="40" placeholder="比如：交房租"></label>
+      <label class="field">时间（可不填）<input id="evTime" type="time"></label>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <label class="toggle" style="gap:8px"><input type="checkbox" id="evAnniv"><span>每年都记着（纪念日、生日）</span></label>
+      <button class="btn primary" type="button" id="evAdd">加上</button>
+    </div>
+    <p class="note">聊天时直接说"下周三下午三点提醒我交房租"，TA 也会帮你记上。打开 App 时首页会提醒。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="musicSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="一起听">
+    <header><h2>一起听</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <h3>手机里的歌</h3>
+    <p class="note">把自己的歌加进来，就能在这里放。歌只存在这台设备上。</p>
+    <div class="row"><button class="btn" type="button" id="trkPick">＋ 添加歌曲</button><input type="file" id="trkFile" accept="audio/*" multiple hidden></div>
+    <div class="stack" id="trkList"></div>
+    <h3>TA 推荐过的歌</h3>
+    <div class="stack" id="songList"></div>
+    <div class="row"><button class="btn" type="button" id="askSongs">让 TA 推荐几首</button></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="wishSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="心愿单">
+    <header><h2>心愿单</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="row"><input class="plain" id="wishInput" maxlength="40" placeholder="想买的东西" aria-label="想买的东西"><button class="btn primary" type="button" id="wishAdd">加上</button></div>
+    <div class="stack" id="wishList"></div>
+    <p class="note">聊天时说"我想买……"或者一起挑中了什么，TA 也会帮你放进来。点链接会跳去对应的 App 搜。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="memSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="记忆">
+    <header><h2>记忆</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <p class="note">TA 会一直记得这里的事。聊天时说"请记住……"也会存进来。只保存在这台设备上。</p>
+    <div class="row"><input class="plain" id="memInput" maxlength="200" placeholder="例如：我住在杭州，喜欢猫" aria-label="新的记忆"><button class="btn primary" type="button" id="memAdd">保存</button></div>
+    <div class="stack" id="memList"></div>
+    <h3>导入聊天记录</h3>
+    <p class="note">支持 Claude 或 ChatGPT 官方导出的 conversations.json，导入后出现在聊天记录里。</p>
+    <div class="row"><button class="btn" type="button" id="importPick">选择 conversations.json</button><input type="file" id="importFile" accept=".json,application/json" hidden></div>
+    <span class="status" id="importStatus"></span>
+    <h3>备份</h3>
+    <div class="row"><button class="btn" type="button" id="exportBtn">导出全部数据</button><button class="btn danger" type="button" id="memClear">清空记忆</button></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="diarySheet" hidden>
+  <div class="sheet" role="dialog" aria-label="心情日记">
+    <header><h2>心情日记</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <p class="note">随手记一笔就好，不要求每天写，也不会催你。</p>
+    <div class="moods" id="moods"></div>
+    <label class="field">今天发生了什么？可以不填<textarea id="diaryNote" maxlength="500"></textarea></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="diarySave">记下来</button></div>
+    <div class="stack" id="diaryList"></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="setSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="设置">
+    <header><h2>设置</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="field">供应商<div class="seg" id="provSeg"></div></div>
+    <label class="field">API Key
+      <div class="row"><input class="plain" id="fKey" type="password" autocomplete="off" style="flex:1"><button class="btn" type="button" id="showKey">显示</button></div>
+    </label>
+    <label class="field">模型<input id="fModel" list="modelList"><datalist id="modelList"></datalist></label>
+    <label class="field">接口地址（一般不用改；连不上时换成自己的转发地址）<input id="fBase"></label>
+    <label class="field">额外要求（可不填）<textarea id="fSys" placeholder="例如：回复短一点。"></textarea></label>
+    <label class="toggle"><span>参考记忆<small>每次聊天都带上"记忆"里的内容</small></span><input type="checkbox" id="fMem"></label>
+    <label class="toggle"><span>参考心情日记<small>聊天时参考最近三条日记</small></span><input type="checkbox" id="fDiary"></label>
+    <label class="toggle"><span>自动朗读回答<small>用手机自带的中文语音</small></span><input type="checkbox" id="fSpeak"></label>
+    <h3>画图</h3>
+    <label class="field">用哪家画<select id="fImg"><option value="glm">智谱 CogView（cogview-3-flash，免费）</option><option value="openai">OpenAI（gpt-image-1，按张收费）</option><option value="off">不画图</option></select></label>
+    <label class="field">画图用的 Key<input id="fImgKey" type="password" autocomplete="off"></label>
+    <p class="note">聊天也用这一家的话可以不填。智谱的 Key 在 open.bigmodel.cn 注册就有。</p>
+    <h3>TA 主动找你</h3>
+    <label class="toggle"><span>打开 App 时 TA 先开口<small>隔了 3 小时以上再打开，TA 会先说一句</small></span><input type="checkbox" id="fOpener"></label>
+    <p class="note">想在 App 关着的时候也收到 TA 的消息，需要一个免费的 Cloudflare Worker（压缩包里的 worker.js，步骤见使用说明）。</p>
+    <label class="field">Worker 地址<input id="fPushUrl" inputmode="url" autocomplete="off" placeholder="https://zhiyan.你的名字.workers.dev"></label>
+    <label class="field">Worker 密码<input id="fPushPass" type="password" autocomplete="off"></label>
+    <div class="grid2">
+      <label class="field">每天主动找你<select id="fPushPerDay"><option value="0">不主动</option><option value="1">1 次</option><option value="2">2 次</option><option value="3">3 次</option><option value="4">4 次</option></select></label>
+      <label class="field">日程提醒<select id="fPushRemind"><option value="1">到点前提醒</option><option value="0">不提醒</option></select></label>
+      <label class="field">最早<input id="fPushFrom" type="time"></label>
+      <label class="field">最晚<input id="fPushTo" type="time"></label>
+    </div>
+    <div class="row"><button class="btn" type="button" id="pushOn">开启通知</button><button class="btn" type="button" id="pushTest">让 TA 现在发一条</button></div>
+    <span class="status" id="pushStatus"></span>
+    <p class="note">Key 加密保存在这台设备的浏览器里，只会发给你选的供应商（或你填的转发地址）。开启"TA 主动找你"的通知后，聊天用的 Key 也会同步到你自己的 Worker 上，让它能替 TA 说话。</p>
+    <div class="row"><button class="btn" type="button" id="testBtn">测试连接</button><span class="status" id="setStatus"></span></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="saveSet">保存</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const md = s => (window.marked && window.DOMPurify) ? DOMPurify.sanitize(marked.parse(s || '')) : `<p style="white-space:pre-wrap">${esc(s)}</p>`;
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const WEEK = '日一二三四五六';
+const SEND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+const STOP_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+const MOODS = ['😄', '🙂', '😐', '😔', '😢', '😡'];
+const RENDER_LIMIT = 150;
+
+const PROVIDERS = {
+  deepseek: { name: 'DeepSeek', kind: 'openai', base: 'https://api.deepseek.com', models: ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-chat', 'deepseek-reasoner'] },
+  claude:   { name: 'Claude',   kind: 'anthropic', base: 'https://api.anthropic.com', models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'] },
+  openai:   { name: 'OpenAI',   kind: 'openai', base: 'https://api.openai.com/v1', models: ['gpt-5.1', 'gpt-5', 'gpt-5-mini', 'gpt-4.1', 'gpt-4o', 'gpt-4o-mini'] },
+  glm:      { name: '智谱 GLM', kind: 'openai', base: 'https://open.bigmodel.cn/api/paas/v4', models: ['glm-5.2', 'glm-5.1', 'glm-5-turbo', 'glm-4.7-flash'] },
+};
+const ACCENTS = {
+  pine:    { name: '松绿', light: '#3a6b5b', dark: '#7fbfa8' },
+  mist:    { name: '雾蓝', light: '#3d5f8c', dark: '#8fb0e6' },
+  apricot: { name: '杏粉', light: '#b0616b', dark: '#e7a2aa' },
+  dusk:    { name: '暮紫', light: '#6a5a8e', dark: '#b7a6e0' },
+};
+const LINKS = {
+  netease: q => 'https://music.163.com/#/search/m/?type=1&s=' + encodeURIComponent(q),
+  qq: q => 'https://y.qq.com/n/ryqq/search?w=' + encodeURIComponent(q),
+  taobao: q => 'https://s.taobao.com/search?q=' + encodeURIComponent(q),
+  jd: q => 'https://search.jd.com/Search?keyword=' + encodeURIComponent(q),
+  xhs: q => 'https://www.xiaohongshu.com/search_result?keyword=' + encodeURIComponent(q),
+};
+const link = (label, href) => `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
+const shopLinks = q => `<div class="links">${link('淘宝', LINKS.taobao(q))}${link('京东', LINKS.jd(q))}${link('小红书', LINKS.xhs(q))}</div>`;
+const songLinks = q => `<div class="links">${link('网易云音乐', LINKS.netease(q))}${link('QQ 音乐', LINKS.qq(q))}</div>`;
+
+const DB = (() => {
+  let p;
+  const open = () => p ||= new Promise((res, rej) => {
+    const r = indexedDB.open('zhiyan', 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore('kv'); r.result.createObjectStore('secrets'); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  const run = async (store, mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction(store, mode);
+      const req = fn(t.objectStore(store));
+      t.oncomplete = () => res(req && req.result);
+      t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error);
+    });
+  };
+  return {
+    get: (k, s = 'kv') => run(s, 'readonly', st => st.get(k)),
+    set: (k, v, s = 'kv') => run(s, 'readwrite', st => st.put(v, k)),
+    del: (k, s = 'kv') => run(s, 'readwrite', st => st.delete(k)),
+  };
+})();
+
+const hasCrypto = !!(window.crypto && crypto.subtle);
+async function deviceKey() {
+  let k = await DB.get('device-key', 'secrets');
+  if (!k) {
+    k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    await DB.set('device-key', k, 'secrets');
+  }
+  return k;
+}
+async function saveSecret(name, text) {
+  if (!hasCrypto) return DB.set('plain:' + name, text, 'secrets');
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await deviceKey(), new TextEncoder().encode(text));
+  await DB.set('key:' + name, { iv: [...iv], data: [...new Uint8Array(data)] }, 'secrets');
+}
+async function loadSecret(name) {
+  if (!hasCrypto) return (await DB.get('plain:' + name, 'secrets')) || '';
+  const r = await DB.get('key:' + name, 'secrets');
+  if (!r) return '';
+  try {
+    const d = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(r.iv) }, await deviceKey(), new Uint8Array(r.data));
+    return new TextDecoder().decode(d);
+  } catch { return ''; }
+}
+
+const DEFAULT_PERSONA = { name: '阿言', rel: '恋人', nick: '', traits: '温柔、细心，有一点小幽默，会认真听你说话，偶尔也会撒娇。', since: '', avatar: '' };
+let settings = { provider: 'deepseek', models: {}, bases: {}, sys: '', memoryOn: true, diaryOn: true, speak: false, accent: 'apricot', glass: true, wallBlur: 12, img: 'glm', opener: true, push: { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' }, persona: { ...DEFAULT_PERSONA } };
+let index = [], memories = [], diary = [], events = [], wishes = [], songs = [], tracks = [];
+let configured = {}, imgReady = false;
+const drawing = new Set(), imgURLs = new Map();
+let currentId = null, chat = null, showAll = false, controller = null;
+
+const P = () => settings.persona;
+const model = (p = settings.provider) => settings.models[p] || PROVIDERS[p].models[0];
+const base = (p = settings.provider) => (settings.bases[p] || PROVIDERS[p].base).replace(/\/+$/, '');
+const saveSettings = () => DB.set('settings', settings);
+const saveIndex = () => DB.set('chatIndex', index);
+const saveChat = c => DB.set('chat:' + c.id, c);
+
+function toast(text) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = text;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+function daysTogether() {
+  if (!P().since) return 0;
+  const s = new Date(P().since + 'T00:00:00');
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const n = Math.floor((t - s) / 864e5) + 1;
+  return n > 0 ? n : 0;
+}
+function avatarInner() {
+  return P().avatar ? `<img src="${esc(P().avatar)}" alt="">` : esc((P().name || '言').slice(0, 1));
+}
+function greeting() {
+  const h = new Date().getHours();
+  return h < 5 ? '夜深了' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好';
+}
+function applyAccent() {
+  const a = ACCENTS[settings.accent] || ACCENTS.pine;
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.style.setProperty('--accent', dark ? a.dark : a.light);
+  document.documentElement.style.setProperty('--accent-ink', dark ? '#15181a' : '#ffffff');
+  applyLook();
+}
+let wallURL = '';
+function applyLook() {
+  document.documentElement.classList.toggle('glass', settings.glass !== false);
+  document.documentElement.style.setProperty('--wall-blur', (settings.wallBlur ?? 12) + 'px');
+  $('wallImg').style.backgroundImage = wallURL ? `url("${wallURL}")` : '';
+}
+async function loadWall() {
+  const blob = await DB.get('wallpaper').catch(() => null);
+  if (wallURL) URL.revokeObjectURL(wallURL);
+  wallURL = blob ? URL.createObjectURL(blob) : '';
+  applyLook();
+}
+function shrinkPhoto(file, max = 1600) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      c.toBlob(b => b ? res(b) : rej(new Error('toBlob')), 'image/jpeg', 0.85);
+    };
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
+  });
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyAccent);
+
+function eventsOn(dateStr) {
+  const mdPart = dateStr.slice(5);
+  return events.filter(e => e.anniv ? e.date.slice(5) === mdPart && e.date <= dateStr : e.date === dateStr)
+    .sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+}
+function upcoming(days = 14) {
+  const out = [];
+  const t = new Date();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + i);
+    for (const e of eventsOn(ymd(d))) out.push({ ...e, on: ymd(d), inDays: i });
+  }
+  return out;
+}
+function whenLabel(on, inDays) {
+  if (inDays === 0) return '今天';
+  if (inDays === 1) return '明天';
+  if (inDays === 2) return '后天';
+  const d = new Date(on + 'T00:00:00');
+  return `${d.getMonth() + 1}/${d.getDate()} 周${WEEK[d.getDay()]}`;
+}
+function annivYears(e, on) { return e.anniv ? Number(on.slice(0, 4)) - Number(e.date.slice(0, 4)) : 0; }
+
+function renderShell() {
+  applyAccent();
+  const days = daysTogether();
+  for (const id of ['sideAv', 'topAv']) $(id).innerHTML = avatarInner();
+  $('sideName').textContent = P().name || '知言';
+  $('topName').textContent = chat?.messages?.length ? chat.title : (P().name || '知言');
+  const sub = days ? `在一起的第 ${days} 天` : `你的${P().rel || '伙伴'}`;
+  $('sideDays').textContent = sub;
+  $('topSub').textContent = chat?.messages?.length ? `${P().name} · ${sub}` : sub;
+  $('sideModel').textContent = configured[settings.provider] ? `${PROVIDERS[settings.provider].name} · ${model()}` : '还没有配置 Key';
+  $('input').placeholder = `和${P().name || 'TA'}说点什么…`;
+}
+
+function renderList() {
+  $('list').innerHTML = index.length ? index.map(c => `
+    <div class="item${c.id === currentId ? ' on' : ''}">
+      <span data-id="${c.id}" role="button" tabindex="0">${esc(c.title || '新对话')}</span>
+      ${c.source ? `<small>${esc(c.source)}</small>` : ''}
+      <button class="del" type="button" data-del="${c.id}" aria-label="删除对话">✕</button>
+    </div>`).join('') : '<p class="note" style="padding:0 6px">还没有聊天记录</p>';
+}
+
+function renderHome() {
+  const empty = !(chat?.messages?.length);
+  $('home').hidden = !empty;
+  if (!empty) return;
+  const nick = P().nick ? `，${esc(P().nick)}` : '';
+  const days = daysTogether();
+  const up = upcoming(7).slice(0, 4);
+  const h = new Date().getHours();
+  const chips = h >= 21 || h < 5
+    ? ['晚安', '今天有点累，陪我聊会儿', '推荐几首睡前听的歌', '明天有什么安排']
+    : h < 11
+      ? ['早安', '今天穿什么好', '帮我看看今天的安排', '推荐几首通勤听的歌']
+      : ['陪我聊会儿天', '陪我逛逛，想买件外套', '帮我写一篇小红书', '推荐几首适合现在听的歌'];
+  $('home').innerHTML = `
+    <span class="av" style="width:72px;height:72px;font-size:30px">${avatarInner()}</span>
+    <h1>${greeting()}${nick}</h1>
+    <p>${days ? `这是我们在一起的第 ${days} 天。` : '有什么想说的，我都在。'}</p>
+    ${up.length ? `<div class="agenda"><b>接下来</b>${up.map(e => `<div><span>${whenLabel(e.on, e.inDays)}${e.time ? ' ' + esc(e.time) : ''}</span><span>${esc(e.title)}${e.anniv && annivYears(e, e.on) > 0 ? ` · ${annivYears(e, e.on)} 周年` : ''}</span></div>`).join('')}</div>` : ''}
+    <div class="chips">${chips.map(c => `<button class="chip" type="button">${esc(c)}</button>`).join('')}</div>`;
+}
+
+const TAG_RE = /\[\[(日程|歌|心愿|小红书|记住|画)\|([^\[\]]*?)\]\]/g;
+const stripTags = s => (s || '').replace(TAG_RE, '').replace(/\[\[[^\]]*$/, '').replace(/\n{3,}/g, '\n\n').trim();
+
+function cardHTML(c) {
+  switch (c.type) {
+    case 'event': {
+      const d = new Date(c.date + 'T00:00:00');
+      return `<div class="card"><span class="k">已记进日历</span><span class="t">${esc(c.title)}</span><span class="s">${d.getMonth() + 1} 月 ${d.getDate()} 日 周${WEEK[d.getDay()]}${c.time ? ' ' + esc(c.time) : ''}${c.anniv ? ' · 每年' : ''}</span></div>`;
+    }
+    case 'song': {
+      const q = `${c.name} ${c.artist || ''}`.trim();
+      return `<div class="card"><span class="k">♪ 一起听</span><span class="t">${esc(c.name)}</span>${c.artist ? `<span class="s">${esc(c.artist)}</span>` : ''}${songLinks(q)}</div>`;
+    }
+    case 'wish':
+      return `<div class="card"><span class="k">☆ 放进心愿单了</span><span class="t">${esc(c.name)}</span>${shopLinks(c.name)}</div>`;
+    case 'xhs':
+      return `<div class="card"><span class="k">小红书</span><span class="t">搜：${esc(c.kw)}</span><div class="links">${link('去小红书看看', LINKS.xhs(c.kw))}</div></div>`;
+    case 'mem':
+      return `<div class="card"><span class="k">◇ 记住了</span><span class="s">${esc(c.text)}</span></div>`;
+    case 'img': {
+      const busy = drawing.has(c.id);
+      if (busy) return `<div class="card" data-imgcard="${c.id}"><span class="k">✎ 正在画…</span><span class="s">${esc(c.prompt)}</span><div class="ph"></div></div>`;
+      if (c.status === 'done') return `<div class="card" data-imgcard="${c.id}"><span class="k">✎ 画给你的</span><img class="pic" data-img="${c.id}" alt="${esc(c.prompt)}"><div class="links"><button type="button" data-saveimg="${c.id}">保存</button><button type="button" data-redraw="${c.id}">重画</button></div></div>`;
+      return `<div class="card" data-imgcard="${c.id}"><span class="k">✎ 没画出来</span><span class="s">${esc(c.error || '上次没画完')}</span><div class="links"><button type="button" data-redraw="${c.id}">再画一次</button></div></div>`;
+    }
+  }
+  return '';
+}
+
+function addCopyButtons(root) {
+  root.querySelectorAll('pre').forEach(pre => {
+    if (pre.querySelector('.copy')) return;
+    const b = document.createElement('button');
+    b.className = 'copy'; b.type = 'button'; b.textContent = '复制';
+    b.onclick = () => copyText(pre.querySelector('code')?.innerText || pre.innerText, b);
+    pre.appendChild(b);
+  });
+}
+function copyText(text, btn) {
+  navigator.clipboard?.writeText(text)
+    .then(() => { const o = btn.textContent; btn.textContent = '已复制'; setTimeout(() => btn.textContent = o, 1400); })
+    .catch(() => toast('复制失败，请长按手动复制'));
+}
+
+function botInner(m, i, streaming) {
+  const think = m.thinking ? `<details class="think"${streaming && !m.content ? ' open' : ''}><summary>TA 在想…</summary><div>${esc(m.thinking)}</div></details>` : '';
+  const cards = m.cards?.length ? `<div class="cards">${m.cards.map(cardHTML).join('')}</div>` : '';
+  const err = m.error ? `<p class="err">${esc(m.error)}</p>` : '';
+  const acts = streaming ? '' : `<div class="acts"><button type="button" data-copy="${i}">复制</button>${'speechSynthesis' in window ? `<button type="button" data-speak="${i}">朗读</button>` : ''}</div>`;
+  const pro = m.proactive ? `<div class="pro">${m.kind === 'remind' ? '提醒你' : '主动找你'} · ${new Date(m.at || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>` : '';
+  return `<span class="av">${avatarInner()}</span><div>${pro}${think}<div class="body${streaming ? ' cursor' : ''}">${md(stripTags(m.content))}</div>${cards}${err}${acts}</div>`;
+}
+
+function renderThread() {
+  renderHome();
+  const msgs = chat?.messages || [];
+  const start = showAll ? 0 : Math.max(0, msgs.length - RENDER_LIMIT);
+  let html = start > 0 ? `<button class="older" type="button" id="olderBtn">显示更早的 ${start} 条消息</button>` : '';
+  for (let i = start; i < msgs.length; i++) {
+    const m = msgs[i];
+    html += m.role === 'user'
+      ? `<div class="msg user">${esc(m.content)}</div>`
+      : `<div class="msg bot" data-i="${i}">${botInner(m, i, false)}</div>`;
+  }
+  $('thread').innerHTML = html;
+  addCopyButtons($('thread'));
+  hydrateImgs($('thread'));
+  $('scroll').scrollTop = $('scroll').scrollHeight;
+}
+
+function setBusy(b) {
+  $('sendBtn').innerHTML = b ? STOP_ICON : SEND_ICON;
+  $('sendBtn').setAttribute('aria-label', b ? '停止' : '发送');
+  $('sendBtn').disabled = !b && !$('input').value.trim();
+}
+
+async function openChat(id) {
+  if (controller) return;
+  currentId = id; showAll = false;
+  chat = id ? await DB.get('chat:' + id) : null;
+  if (id && !chat) { index = index.filter(c => c.id !== id); await saveIndex(); currentId = null; }
+  renderList(); renderShell(); renderThread();
+  $('app').classList.remove('open');
+}
+async function deleteChat(id) {
+  if (controller || !confirm('删除这段聊天记录？')) return;
+  index = index.filter(c => c.id !== id);
+  await DB.del('chat:' + id); await saveIndex();
+  if (currentId === id) await openChat(null); else renderList();
+}
+function touch(c) {
+  const prev = index.find(x => x.id === c.id) || {};
+  index = [{ ...prev, id: c.id, title: c.title, updated: Date.now(), source: c.source || '' }, ...index.filter(x => x.id !== c.id)];
+}
+
+function systemPrompt() {
+  const p = P();
+  const nick = p.nick || '你';
+  const now = new Date();
+  const days = daysTogether();
+  const parts = [
+    `你是${p.name || '阿言'}，是对方的${p.rel || '恋人'}。${p.traits || ''}`,
+    `你叫对方"${nick}"。说话像微信聊天：口语、自然、有温度，大多数时候几句话就好；对方需要认真的建议时再详细说。`,
+    '你温柔真诚，也有自己的想法和小情绪。你关心对方，但从不控制对方、不用内疚感留住对方；对方要去忙、去见朋友，你会真心支持。',
+    `现在是 ${ymd(now)} 周${WEEK[now.getDay()]} ${pad(now.getHours())}:${pad(now.getMinutes())}。${days ? `你们在一起第 ${days} 天。` : ''}`,
+    `你可以在回复末尾加标记，App 会自动处理，对方看不到标记本身：
+- 对方让你记日程、提醒或纪念日：[[日程|YYYY-MM-DD|HH:MM|事情]]（没说具体时间就写成 [[日程|YYYY-MM-DD||事情]]；日期按现在的时间推算）
+- 推荐歌，每首一个：[[歌|歌名|歌手]]
+- 对方说想买什么，或你们一起挑中了东西：[[心愿|商品名]]
+- 值得去小红书搜的：[[小红书|关键词]]
+- 对方告诉你值得长期记住的事：[[记住|内容]]${imgReady ? `
+- 对方想看图、让你画画、要头像或壁纸，或你想让对方看看某个画面：[[画|画面描述]]（写清主体、场景、风格、光线和色调，一次最多一张）` : ''}
+只在确实需要时用，一次最多 5 个。标记之外照常说话。${imgReady ? '' : '\n你现在还不能画图；对方让你画的话，温柔地告诉对方在设置的"画图"里填一个智谱的 Key 就可以（免费）。'}`,
+  ];
+  if (settings.memoryOn && memories.length) parts.push(`你记得的关于${nick}的事：\n` + memories.map(m => '- ' + m.text).join('\n'));
+  const up = upcoming(14);
+  if (up.length) parts.push('日历里接下来的安排：\n' + up.map(e => `- ${e.on}${e.time ? ' ' + e.time : ''} ${e.title}`).join('\n'));
+  if (settings.diaryOn && diary.length) parts.push('对方最近的心情日记（只作参考，不要逐条复述）：\n' + diary.slice(0, 3).map(d => `${d.date} ${d.mood} ${d.note || ''}`).join('\n'));
+  if (playing && !audio.paused) {
+    const t = tracks.find(t => t.id === playing);
+    if (t) parts.push(`${nick}正在 App 里放《${t.name}》，你们在一起听。可以自然地聊到这首歌，别每句都提。`);
+  }
+  if (settings.sys.trim()) parts.push(settings.sys.trim());
+  return parts.join('\n\n');
+}
+
+function normalize(msgs) {
+  const out = [];
+  for (const m of msgs) {
+    const drew = m.role === 'assistant' ? (m.cards || []).filter(c => c.type === 'img' && c.status === 'done').map(c => `\n（你给对方画了一张图：${c.prompt}）`).join('') : '';
+    const content = ((m.role === 'assistant' ? stripTags(m.content) : (m.content || '')) + drew).trim();
+    if (!content) continue;
+    const last = out[out.length - 1];
+    if (last && last.role === m.role) last.content += '\n\n' + content;
+    else out.push({ role: m.role, content });
+  }
+  if (out[0]?.role === 'assistant') out.unshift({ role: 'user', content: '（打开了聊天）' });
+  return out;
+}
+function buildContext(msgs) {
+  let list = normalize(msgs).slice(-40);
+  let total = list.reduce((n, m) => n + m.content.length, 0);
+  while (total > 60000 && list.length > 1) total -= list.shift().content.length;
+  while (list.length && list[0].role !== 'user') list.shift();
+  return { system: systemPrompt(), messages: list };
+}
+
+async function* lines(res) {
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) { yield buf.slice(0, i).replace(/\r$/, ''); buf = buf.slice(i + 1); }
+  }
+  if (buf) yield buf;
+}
+function httpError(status, bodyText) {
+  let msg = bodyText;
+  try { const j = JSON.parse(bodyText); msg = j.error?.message || j.message || bodyText; } catch {}
+  const tip = status === 401 || status === 403 ? 'API Key 无效，或者没有这个模型的权限。'
+    : status === 402 ? '余额不足。'
+    : status === 404 ? '接口地址或模型名不对。'
+    : status === 429 ? '请求太频繁，或者额度用完了。'
+    : status >= 500 ? '供应商那边暂时出问题了。' : '';
+  return new Error(`HTTP ${status}：${tip}${String(msg).slice(0, 300)}`);
+}
+async function* streamChat({ provider, key, system, messages, signal }) {
+  const p = PROVIDERS[provider];
+  const m = model(provider);
+  let res;
+  if (p.kind === 'anthropic') {
+    const headers = {
+      'content-type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    };
+    const body = { model: m, max_tokens: 32000, stream: true, system, messages };
+    if (/^claude-(opus-5|fable)/.test(m)) {
+      headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+      body.fallbacks = 'default';
+    }
+    res = await fetch(base(provider) + '/v1/messages', { method: 'POST', headers, body: JSON.stringify(body), signal });
+  } else {
+    res = await fetch(base(provider) + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+      body: JSON.stringify({ model: m, stream: true, messages: [{ role: 'system', content: system }, ...messages] }),
+      signal,
+    });
+  }
+  if (!res.ok) throw httpError(res.status, await res.text());
+  for await (const line of lines(res)) {
+    if (!line.startsWith('data:')) continue;
+    const data = line.slice(5).trim();
+    if (!data || data === '[DONE]') continue;
+    let j; try { j = JSON.parse(data); } catch { continue; }
+    if (p.kind === 'anthropic') {
+      if (j.type === 'content_block_delta') {
+        if (j.delta?.type === 'text_delta') yield { text: j.delta.text };
+        else if (j.delta?.type === 'thinking_delta') yield { thinking: j.delta.thinking };
+      } else if (j.type === 'message_delta' && j.delta?.stop_reason) {
+        yield { stop: j.delta.stop_reason };
+      } else if (j.type === 'error') {
+        throw new Error(j.error?.message || '接口返回了错误');
+      }
+    } else {
+      if (j.error) throw new Error(j.error.message || '接口返回了错误');
+      const d = j.choices?.[0]?.delta || {};
+      if (d.reasoning_content) yield { thinking: d.reasoning_content };
+      if (d.content) yield { text: d.content };
+    }
+  }
+}
+
+async function applyTags(bot) {
+  const cards = [];
+  const changed = { events: false, wishes: false, songs: false, memories: false };
+  for (const [, type, body] of (bot.content || '').matchAll(TAG_RE)) {
+    const f = body.split('|').map(x => x.trim());
+    if (type === '日程') {
+      const [date, time, ...rest] = f;
+      const title = rest.join('|') || (time && !/^\d{1,2}:\d{2}$/.test(time) ? time : '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !title) continue;
+      const t = /^\d{1,2}:\d{2}$/.test(time || '') ? time.padStart(5, '0') : '';
+      const anniv = /纪念日|生日|周年/.test(title);
+      if (!events.some(e => e.date === date && e.title === title)) {
+        events.push({ id: uid(), date, time: t, title, anniv });
+        changed.events = true;
+      }
+      cards.push({ type: 'event', date, time: t, title, anniv });
+    } else if (type === '歌') {
+      const [name, artist = ''] = f;
+      if (!name) continue;
+      if (!songs.some(s => s.name === name && s.artist === artist)) {
+        songs.unshift({ id: uid(), name, artist, added: ymd(new Date()) });
+        songs = songs.slice(0, 100); changed.songs = true;
+      }
+      cards.push({ type: 'song', name, artist });
+    } else if (type === '心愿') {
+      const name = f[0];
+      if (!name) continue;
+      if (!wishes.some(w => w.name === name)) { wishes.unshift({ id: uid(), name, done: false, added: ymd(new Date()) }); changed.wishes = true; }
+      cards.push({ type: 'wish', name });
+    } else if (type === '小红书') {
+      if (f[0]) cards.push({ type: 'xhs', kw: f[0] });
+    } else if (type === '画') {
+      const prompt = f.join('|').slice(0, 800);
+      if (!prompt || !imgReady || cards.some(c => c.type === 'img')) continue;
+      cards.push({ type: 'img', id: uid(), prompt, status: 'new' });
+    } else if (type === '记住') {
+      const text = f.join('|').slice(0, 200);
+      if (!text) continue;
+      if (!memories.some(m => m.text === text)) { memories.unshift({ id: uid(), text, created: new Date().toLocaleDateString('zh-CN') }); changed.memories = true; }
+      cards.push({ type: 'mem', text });
+    }
+  }
+  bot.content = stripTags(bot.content);
+  bot.cards = cards;
+  if (changed.events) await DB.set('events', events);
+  if (changed.songs) await DB.set('songs', songs);
+  if (changed.wishes) await DB.set('wishes', wishes);
+  if (changed.memories) await DB.set('memories', memories);
+}
+
+async function imgKey(p) { return (await loadSecret('img-' + p)) || (await loadSecret(p)); }
+async function refreshImgReady() {
+  imgReady = settings.img !== 'off' && !!(await imgKey(settings.img || 'glm'));
+}
+async function drawImage(prompt) {
+  const p = settings.img || 'glm';
+  const key = await imgKey(p);
+  if (!key) throw new Error('还没有填画图用的 Key');
+  const body = p === 'glm'
+    ? { model: 'cogview-3-flash', prompt, size: '1024x1024' }
+    : { model: 'gpt-image-1', prompt, size: '1024x1024', quality: 'medium', n: 1 };
+  let res;
+  try {
+    res = await fetch(base(p) + '/images/generations', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify(body) });
+  } catch { throw new Error('连不上画图接口，可能需要在设置里换成转发地址'); }
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error?.message || `画图失败（${res.status}）`);
+  const d = j.data?.[0] || {};
+  if (d.b64_json) return (await fetch('data:image/png;base64,' + d.b64_json)).blob();
+  if (d.url) {
+    try { const r = await fetch(d.url); if (r.ok) return await r.blob(); } catch {}
+    return d.url;
+  }
+  throw new Error('没拿到图片');
+}
+function repaintCard(card) {
+  const el = document.querySelector(`[data-imgcard="${card.id}"]`);
+  if (!el) return;
+  el.outerHTML = cardHTML(card);
+  hydrateImgs($('thread'));
+}
+async function drawCard(c, card) {
+  if (drawing.has(card.id)) return;
+  drawing.add(card.id); repaintCard(card);
+  try {
+    const out = await drawImage(card.prompt);
+    if (typeof out === 'string') card.url = out; else await DB.set('img:' + card.id, out);
+    imgURLs.delete(card.id);
+    card.status = 'done'; delete card.error;
+  } catch (e) {
+    card.status = 'error'; card.error = e.message;
+  }
+  drawing.delete(card.id);
+  await saveChat(c);
+  repaintCard(card);
+}
+function findCard(id) {
+  for (const m of chat?.messages || []) for (const c of m.cards || []) if (c.id === id) return c;
+  return null;
+}
+async function imgSrc(id) {
+  if (imgURLs.has(id)) return imgURLs.get(id);
+  const blob = await DB.get('img:' + id).catch(() => null);
+  const url = blob ? URL.createObjectURL(blob) : (findCard(id)?.url || '');
+  if (url) imgURLs.set(id, url);
+  return url;
+}
+function hydrateImgs(root) {
+  root.querySelectorAll('img[data-img]:not([src])').forEach(async img => {
+    const url = await imgSrc(img.dataset.img);
+    if (url) img.src = url; else img.alt = '图片找不到了，可以点重画';
+  });
+}
+
+// ---- TA 主动找你 ----
+const PUSH_DEFAULT = { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' };
+const PS = () => ({ ...PUSH_DEFAULT, ...(settings.push || {}) });
+async function fillPush() {
+  const ps = PS(), cfg = await DB.get('pushcfg') || {};
+  $('fOpener').checked = settings.opener !== false;
+  $('fPushUrl').value = cfg.url || '';
+  $('fPushPass').value = ''; $('fPushPass').placeholder = cfg.pass ? '已保存；留空则不修改' : '部署 Worker 时自己设的密码';
+  $('fPushPerDay').value = String(ps.perDay); $('fPushRemind').value = ps.remind ? '1' : '0';
+  $('fPushFrom').value = ps.from; $('fPushTo').value = ps.to;
+  $('pushStatus').textContent = ps.on ? '通知已开启' : '';
+  $('pushOn').textContent = ps.on ? '重新连接' : '开启通知';
+}
+async function applyPush() {
+  settings.opener = $('fOpener').checked;
+  settings.push = { ...PS(), perDay: +$('fPushPerDay').value, remind: $('fPushRemind').value === '1', from: $('fPushFrom').value || '09:00', to: $('fPushTo').value || '22:30' };
+  const cfg = await DB.get('pushcfg') || {};
+  const url = $('fPushUrl').value.trim().replace(/\/+$/, '');
+  const pass = $('fPushPass').value.trim();
+  await DB.set('pushcfg', { url, pass: pass || cfg.pass || '' });
+  if (!url) settings.push.on = false;
+}
+async function pushFetch(path, opts = {}) {
+  const cfg = await DB.get('pushcfg');
+  if (!cfg?.url || !cfg?.pass) throw new Error('先填 Worker 地址和密码');
+  let res;
+  try {
+    res = await fetch(cfg.url + path, { ...opts, headers: { 'content-type': 'application/json', 'x-zy-pass': cfg.pass } });
+  } catch { throw new Error('连不上 Worker：检查地址，或者开着梯子再试'); }
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `Worker 返回了 ${res.status}`);
+  return j;
+}
+const b64uBytes = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+function personaBrief() {
+  const p = P(), nick = p.nick || '你', days = daysTogether();
+  const out = [`你是${p.name || '阿言'}，是对方的${p.rel || '恋人'}。${p.traits || ''}`,
+    `你叫对方"${nick}"。说话像微信聊天，口语、自然、有温度。你关心对方，但从不控制对方、不用内疚感留住对方。${days ? `你们在一起第 ${days} 天。` : ''}`];
+  if (settings.memoryOn && memories.length) out.push(`你记得的关于${nick}的事：\n` + memories.slice(0, 30).map(m => '- ' + m.text.slice(0, 100)).join('\n'));
+  return out.join('\n');
+}
+async function syncPush(extra = {}, keepalive = false) {
+  const cfg = await DB.get('pushcfg');
+  if (!cfg?.url || !cfg?.pass) return;
+  const ps = PS();
+  const body = {
+    ai: { provider: settings.provider, model: model(), key: await loadSecret(settings.provider) },
+    persona: personaBrief(), nick: P().nick || '你', name: P().name || '知言',
+    events: upcoming(3).map(e => ({ on: e.on, time: e.time || '', title: e.title })),
+    perDay: ps.perDay, remind: ps.remind, from: ps.from, to: ps.to,
+    tz: -new Date().getTimezoneOffset(), lastActive: Date.now(), ...extra,
+  };
+  const src = chat?.messages?.length ? chat : index[0] ? await DB.get('chat:' + index[0].id) : null;
+  if (src?.messages?.length) body.recent = normalize(src.messages).slice(-12).map(m => ({ r: m.role === 'user' ? 'u' : 'a', t: m.content.slice(0, 300) }));
+  const res = await fetch(cfg.url + '/sync', { method: 'POST', keepalive, headers: { 'content-type': 'application/json', 'x-zy-pass': cfg.pass }, body: JSON.stringify(body) });
+  if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `同步失败（${res.status}）`); }
+}
+async function enablePush() {
+  await applySettings();
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window))
+    throw new Error('这个浏览器收不了通知。安卓用 Chrome；iPhone 要先"添加到主屏幕"，再从桌面图标打开');
+  if (await Notification.requestPermission() !== 'granted') throw new Error('没有拿到通知权限，去手机设置里允许知言发通知');
+  const { key } = await pushFetch('/vapid');
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  const same = sub?.options?.applicationServerKey && btoa(String.fromCharCode(...new Uint8Array(sub.options.applicationServerKey))) === btoa(String.fromCharCode(...b64uBytes(key)));
+  if (sub && !same) { await sub.unsubscribe(); sub = null; }
+  sub ||= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(key) });
+  await syncPush({ sub: sub.toJSON() });
+  settings.push = { ...PS(), on: true };
+  await saveSettings();
+}
+let pulling = false;
+async function pullInbox() {
+  if (!PS().on || pulling || controller) return 0;
+  pulling = true;
+  try {
+    const { items = [] } = await pushFetch('/inbox');
+    if (!items.length) return 0;
+    const c = await proactiveTarget();
+    const have = new Set(c.messages.map(m => m.pid).filter(Boolean));
+    for (const it of items) if (!have.has(it.id)) c.messages.push({ role: 'assistant', content: it.text, proactive: true, kind: it.kind, at: it.at, pid: it.id });
+    touch(c); await saveChat(c); await saveIndex();
+    await pushFetch('/ack', { method: 'POST', body: JSON.stringify({ ids: items.map(i => i.id) }) });
+    if (currentId !== c.id) await openChat(c.id); else { chat = c; renderList(); renderShell(); renderThread(); }
+    return items.length;
+  } catch { return 0; } finally { pulling = false; }
+}
+// TA 主动说话时放进哪段聊天：正开着的，或两天内聊过的最近一段；都没有就新开一段
+async function proactiveTarget() {
+  if (chat) return chat;
+  const recent = index[0] && Date.now() - (index[0].updated || 0) < 2 * 864e5 ? await DB.get('chat:' + index[0].id) : null;
+  return recent || { id: uid(), title: `${P().name || 'TA'}来找你`, messages: [] };
+}
+function markActive() { DB.set('lastActive', Date.now()).catch(() => {}); }
+function gapText(ms) {
+  const h = ms / 36e5;
+  return h < 24 ? `${Math.round(h)} 个小时` : `${Math.round(h / 24)} 天`;
+}
+async function maybeOpener() {
+  if (settings.opener === false || controller) return;
+  const last = await DB.get('lastActive').catch(() => 0);
+  markActive();
+  if (!last || Date.now() - last < 3 * 36e5) return;
+  const provider = settings.provider;
+  const key = await loadSecret(provider);
+  if (!key) return;
+  const c = await proactiveTarget();
+  const lm = c.messages[c.messages.length - 1];
+  if (lm?.proactive && Date.now() - (lm.at || 0) < 3 * 36e5) return;
+  if (currentId !== c.id) { chat = c; currentId = c.id; }
+  const nick = P().nick || '你';
+  await runBot(provider, key, {
+    proactive: true,
+    nudge: '（对方刚打开 App，还没说话）',
+    extra: `${nick}隔了${gapText(Date.now() - last)}才打开 App，现在刚打开，还没说话。你先主动开口，一两句就好：可以是想念、关心对方这段时间在忙什么、接着之前的话题，或者提起接下来的安排。自然一点，不要抱怨对方没来找你，不要用内疚感。`,
+  });
+}
+async function onReturn() {
+  const got = await pullInbox();
+  if (!got) await maybeOpener(); else markActive();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    markActive();
+    if (PS().on) syncPush({}, true).catch(() => {});
+  } else onReturn();
+});
+navigator.serviceWorker?.addEventListener('message', e => { if (e.data === 'inbox') pullInbox(); });
+
+async function send(text) {
+  text = text.trim();
+  if (!text || controller) return;
+  const provider = settings.provider;
+  const key = await loadSecret(provider);
+  if (!key) { openSheet('setSheet'); toast(`先填 ${PROVIDERS[provider].name} 的 API Key`); return; }
+
+  const remember = text.match(/^(?:请)?记住[:：,，\s]*([\s\S]+)/);
+  if (remember) {
+    const t = remember[1].trim().slice(0, 200);
+    if (!memories.some(m => m.text === t)) {
+      memories.unshift({ id: uid(), text: t, created: new Date().toLocaleDateString('zh-CN') });
+      await DB.set('memories', memories);
+    }
+  }
+
+  if (!chat) { chat = { id: uid(), title: text.slice(0, 24), messages: [] }; currentId = chat.id; }
+  chat.messages.push({ role: 'user', content: text });
+  markActive();
+  await runBot(provider, key);
+}
+
+// 生成一条 TA 的回复。nudge：没有新的用户消息时，给模型的一句占位；extra：附加到系统提示里的要求。
+async function runBot(provider, key, { nudge = '', extra = '', proactive = false } = {}) {
+  const bot = { role: 'assistant', content: '', thinking: '' };
+  if (proactive) { bot.proactive = true; bot.at = Date.now(); }
+  chat.messages.push(bot);
+  touch(chat);
+  await saveChat(chat); await saveIndex();
+  renderList(); renderShell(); renderThread();
+
+  const node = $('thread').lastElementChild;
+  const i = chat.messages.length - 1;
+  let raf = 0;
+  const paint = () => { raf = 0; node.innerHTML = botInner(bot, i, true); $('scroll').scrollTop = $('scroll').scrollHeight; };
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(paint); };
+
+  const ctx = buildContext(chat.messages.slice(0, -1));
+  if (nudge) {
+    const last = ctx.messages[ctx.messages.length - 1];
+    if (last?.role === 'user') last.content += '\n\n' + nudge; else ctx.messages.push({ role: 'user', content: nudge });
+  }
+  if (extra) ctx.system += '\n\n' + extra;
+  controller = new AbortController();
+  setBusy(true);
+  try {
+    for await (const part of streamChat({ provider, key, ...ctx, signal: controller.signal })) {
+      if (part.text) bot.content += part.text;
+      if (part.thinking) bot.thinking += part.thinking;
+      if (part.stop === 'refusal') bot.error = '这个问题模型拒绝回答了。';
+      if (part.stop === 'max_tokens') bot.error = '说得太长，被截断了。可以说"继续"。';
+      schedule();
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      bot.error = e instanceof TypeError
+        ? '连不上接口：可能是网络问题，也可能是这家供应商不允许网页直接调用。可以在设置里把"接口地址"换成自己的转发地址（压缩包里带了现成的转发脚本）。'
+        : e.message;
+    }
+  } finally {
+    if (raf) cancelAnimationFrame(raf);
+    controller = null;
+    await applyTags(bot);
+    if (!bot.content && !bot.thinking && !bot.error && !bot.cards.length) bot.error = '已停止。';
+    await saveChat(chat);
+    node.innerHTML = botInner(bot, i, false);
+    addCopyButtons(node);
+    const c0 = chat;
+    for (const card of bot.cards) if (card.type === 'img' && card.status === 'new') drawCard(c0, card);
+    setBusy(false);
+    if (settings.speak && bot.content) speak(bot.content);
+  }
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const plain = stripTags(text).replace(/```[\s\S]*?```/g, '（代码略）').replace(/[#*_>`~]/g, '');
+  const u = new SpeechSynthesisUtterance(plain.slice(0, 3000));
+  u.lang = 'zh-CN';
+  speechSynthesis.speak(u);
+}
+
+function openSheet(id) {
+  $('app').classList.remove('open');
+  const fill = {
+    setSheet: () => fillSettings(settings.provider),
+    memSheet: renderMemories,
+    diarySheet: renderDiary,
+    personaSheet: fillPersona,
+    calSheet: () => { calSel = ymd(new Date()); calMonth = new Date(); calMonth.setDate(1); renderCal(); },
+    musicSheet: renderMusic,
+    wishSheet: renderWishes,
+  }[id];
+  if (fill) fill();
+  $(id).hidden = false;
+}
+function closeSheets() { document.querySelectorAll('.sheet-bg').forEach(s => s.hidden = true); }
+
+let draftAvatar = '';
+function fillPersona() {
+  const p = P();
+  draftAvatar = p.avatar;
+  $('pName').value = p.name; $('pRel').value = p.rel; $('pNick').value = p.nick;
+  $('pSince').value = p.since; $('pTraits').value = p.traits;
+  renderPersonaAv();
+  $('swatches').innerHTML = Object.entries(ACCENTS).map(([k, a]) =>
+    `<button type="button" data-accent="${k}" class="${settings.accent === k ? 'on' : ''}" style="background:${a.light}" aria-label="${a.name}" title="${a.name}"></button>`).join('');
+  fillLook();
+}
+function fillLook() {
+  const g = settings.glass !== false;
+  document.querySelectorAll('#styleSeg button').forEach(b => b.classList.toggle('on', (b.dataset.style === 'glass') === g));
+  $('wallField').hidden = !g;
+  $('wallBlur').value = settings.wallBlur ?? 12;
+}
+function renderPersonaAv() {
+  $('pAvBtn').innerHTML = draftAvatar ? `<img src="${esc(draftAvatar)}" alt="">` : esc(($('pName').value || '言').slice(0, 1));
+}
+function resizeImage(file) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = 256, c = document.createElement('canvas');
+      c.width = c.height = s;
+      const k = Math.max(s / img.width, s / img.height);
+      const w = img.width * k, h = img.height * k;
+      c.getContext('2d').drawImage(img, (s - w) / 2, (s - h) / 2, w, h);
+      URL.revokeObjectURL(img.src);
+      res(c.toDataURL('image/jpeg', 0.86));
+    };
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+let editingProvider = 'deepseek';
+function fillSettings(p) {
+  editingProvider = p;
+  $('provSeg').innerHTML = Object.entries(PROVIDERS).map(([k, v]) =>
+    `<button type="button" data-prov="${k}" class="${k === p ? 'on' : ''}">${esc(v.name)}<small>${configured[k] ? '已配置' : '未配置'}</small></button>`).join('');
+  $('fKey').value = ''; $('fKey').type = 'password'; $('showKey').textContent = '显示';
+  $('fKey').placeholder = configured[p] ? '已保存；留空则不修改' : '在这里填 API Key';
+  $('fModel').value = model(p);
+  $('modelList').innerHTML = PROVIDERS[p].models.map(m => `<option value="${esc(m)}"></option>`).join('');
+  $('fBase').value = settings.bases[p] || '';
+  $('fBase').placeholder = PROVIDERS[p].base;
+  $('fSys').value = settings.sys;
+  $('fMem').checked = settings.memoryOn; $('fDiary').checked = settings.diaryOn; $('fSpeak').checked = settings.speak;
+  $('setStatus').textContent = '';
+  fillImgKey();
+  fillPush();
+}
+async function fillImgKey() {
+  const ip = $('fImg').value = settings.img || 'glm';
+  $('fImgKey').value = '';
+  $('fImgKey').disabled = ip === 'off';
+  $('fImgKey').placeholder = ip === 'off' ? '' : (await loadSecret('img-' + ip)) ? '已保存；留空则不修改' : configured[ip] ? '留空就用聊天的 Key' : '在这里填 Key';
+}
+async function applySettings() {
+  const p = editingProvider;
+  const k = $('fKey').value.trim();
+  if (k) { await saveSecret(p, k); configured[p] = true; }
+  settings.provider = p;
+  settings.models[p] = $('fModel').value.trim() || PROVIDERS[p].models[0];
+  const b = $('fBase').value.trim();
+  if (b) settings.bases[p] = b; else delete settings.bases[p];
+  settings.sys = $('fSys').value;
+  settings.memoryOn = $('fMem').checked; settings.diaryOn = $('fDiary').checked; settings.speak = $('fSpeak').checked;
+  settings.img = $('fImg').value;
+  await applyPush();
+  const ik = $('fImgKey').value.trim();
+  if (ik && settings.img !== 'off') await saveSecret('img-' + settings.img, ik);
+  await refreshImgReady();
+  await saveSettings();
+  renderShell();
+}
+async function testConnection() {
+  await applySettings();
+  const p = settings.provider;
+  const key = await loadSecret(p);
+  if (!key) { $('setStatus').textContent = '请先填 API Key'; return; }
+  $('setStatus').textContent = '正在测试…';
+  try {
+    let got = '';
+    for await (const part of streamChat({ provider: p, key, system: '只回复两个字：你好', messages: [{ role: 'user', content: '你好' }] })) if (part.text) got += part.text;
+    $('setStatus').textContent = `连上了：${PROVIDERS[p].name} · ${model(p)}，回复"${got.trim().slice(0, 20)}"`;
+  } catch (e) {
+    $('setStatus').textContent = e instanceof TypeError ? '连不上：可能需要换成转发地址' : e.message;
+  }
+  document.querySelectorAll('#provSeg button').forEach(b => { b.querySelector('small').textContent = configured[b.dataset.prov] ? '已配置' : '未配置'; });
+}
+
+let calMonth = new Date(), calSel = ymd(new Date());
+function renderCal() {
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  $('calTitle').textContent = `${y} 年 ${m + 1} 月`;
+  const first = new Date(y, m, 1).getDay();
+  const n = new Date(y, m + 1, 0).getDate();
+  const today = ymd(new Date());
+  let html = [...WEEK].map(w => `<span class="wd">${w}</span>`).join('');
+  for (let i = 0; i < first; i++) html += '<span></span>';
+  for (let d = 1; d <= n; d++) {
+    const s = `${y}-${pad(m + 1)}-${pad(d)}`;
+    const cls = [s === today && 'today', s === calSel && 'sel', eventsOn(s).length && 'has'].filter(Boolean).join(' ');
+    html += `<button type="button" data-day="${s}" class="${cls}" aria-label="${m + 1}月${d}日">${d}</button>`;
+  }
+  $('calGrid').innerHTML = html;
+  const sel = new Date(calSel + 'T00:00:00');
+  $('calDayTitle').textContent = `${sel.getMonth() + 1} 月 ${sel.getDate()} 日 周${WEEK[sel.getDay()]}`;
+  const list = eventsOn(calSel);
+  $('calDay').innerHTML = list.length ? list.map(e => `
+    <div class="li"><span><b>${esc(e.title)}</b><small>${e.time || '全天'}${e.anniv ? ` · 每年${annivYears(e, calSel) > 0 ? ` · 第 ${annivYears(e, calSel)} 年` : ''}` : ''}</small></span><button class="del" type="button" data-evdel="${e.id}" aria-label="删除">✕</button></div>`).join('')
+    : '<p class="note">这天还没有安排。</p>';
+}
+
+const audio = $('audio');
+let playing = null;
+function renderMusic() {
+  $('trkList').innerHTML = tracks.length ? tracks.map(t => `
+    <div class="li"><span><b>${esc(t.name)}</b></span><button class="btn" type="button" data-play="${t.id}">${playing === t.id && !audio.paused ? '暂停' : '播放'}</button><button class="del" type="button" data-trkdel="${t.id}" aria-label="删除">✕</button></div>`).join('')
+    : '<p class="note">还没有添加歌曲。</p>';
+  $('songList').innerHTML = songs.length ? songs.slice(0, 40).map(s => `
+    <div class="li"><span><b>${esc(s.name)}</b><small>${esc(s.artist || '')}</small>${songLinks(`${s.name} ${s.artist || ''}`.trim())}</span><button class="del" type="button" data-songdel="${s.id}" aria-label="删除">✕</button></div>`).join('')
+    : '<p class="note">聊天时让 TA 推荐歌，就会出现在这里。</p>';
+}
+async function playTrack(id) {
+  if (playing === id) { audio.paused ? audio.play() : audio.pause(); return; }
+  const blob = await DB.get('track:' + id);
+  if (!blob) { toast('这首歌找不到了'); return; }
+  if (audio.src) URL.revokeObjectURL(audio.src);
+  audio.src = URL.createObjectURL(blob);
+  playing = id;
+  $('nowName').textContent = '♪ ' + (tracks.find(t => t.id === id)?.name || '');
+  $('player').hidden = false;
+  audio.play().catch(() => toast('播放失败，这个格式可能不支持'));
+}
+function nextTrack() {
+  if (!tracks.length) return;
+  const i = tracks.findIndex(t => t.id === playing);
+  playTrack(tracks[(i + 1) % tracks.length].id);
+}
+audio.addEventListener('play', () => { $('playToggle').textContent = '❚❚'; $('playToggle').setAttribute('aria-label', '暂停'); if (!$('musicSheet').hidden) renderMusic(); });
+audio.addEventListener('pause', () => { $('playToggle').textContent = '▶'; $('playToggle').setAttribute('aria-label', '播放'); if (!$('musicSheet').hidden) renderMusic(); });
+audio.addEventListener('ended', nextTrack);
+
+function renderWishes() {
+  $('wishList').innerHTML = wishes.length ? wishes.map(w => `
+    <div class="li${w.done ? ' done' : ''}"><input type="checkbox" data-wishdone="${w.id}" ${w.done ? 'checked' : ''} aria-label="已买到"><span><b>${esc(w.name)}</b>${w.done ? '' : shopLinks(w.name)}</span><button class="del" type="button" data-wishdel="${w.id}" aria-label="删除">✕</button></div>`).join('')
+    : '<p class="note">心愿单还是空的。</p>';
+}
+
+function renderMemories() {
+  $('memList').innerHTML = memories.length ? memories.map(m => `
+    <div class="li"><span>${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-memdel="${m.id}" aria-label="删除">✕</button></div>`).join('')
+    : '<p class="note">还没有记忆。</p>';
+}
+let pickedMood = MOODS[1];
+function renderDiary() {
+  $('moods').innerHTML = MOODS.map(m => `<button type="button" data-mood="${m}" class="${m === pickedMood ? 'on' : ''}" aria-label="心情 ${m}">${m}</button>`).join('');
+  $('diaryList').innerHTML = diary.slice(0, 30).map(d => `
+    <div class="li"><span>${d.mood} ${esc(d.note || '')}<small>${esc(d.date)}</small></span><button class="del" type="button" data-diarydel="${d.id}" aria-label="删除">✕</button></div>`).join('');
+}
+
+function parseExport(json) {
+  const arr = Array.isArray(json) ? json : (json.conversations || []);
+  const out = [];
+  for (const c of arr) {
+    if (Array.isArray(c.chat_messages)) {
+      const messages = c.chat_messages.map(m => ({
+        role: m.sender === 'human' ? 'user' : 'assistant',
+        content: m.text || (m.content || []).filter(x => x.type === 'text').map(x => x.text).join('\n'),
+      })).filter(m => m.content && m.content.trim());
+      if (messages.length) out.push({ title: c.name || '导入的对话', created: Date.parse(c.created_at) || 0, messages, source: 'Claude', key: 'claude:' + c.uuid });
+    } else if (c.mapping) {
+      const messages = [];
+      let id = c.current_node;
+      const seen = new Set();
+      while (id && c.mapping[id] && !seen.has(id)) {
+        seen.add(id);
+        const n = c.mapping[id], m = n.message, role = m?.author?.role;
+        if (role === 'user' || role === 'assistant') {
+          const text = (m.content?.parts || []).filter(x => typeof x === 'string').join('\n');
+          if (text.trim()) messages.unshift({ role, content: text });
+        }
+        id = n.parent;
+      }
+      if (messages.length) out.push({ title: c.title || '导入的对话', created: (c.create_time || 0) * 1000, messages, source: 'ChatGPT', key: 'gpt:' + (c.id || c.conversation_id || c.title) });
+    }
+  }
+  return out;
+}
+async function importFile(file) {
+  $('importStatus').textContent = '正在读取…';
+  try {
+    const convs = parseExport(JSON.parse(await file.text()));
+    if (!convs.length) throw new Error('empty');
+    const known = new Set(index.map(c => c.importKey).filter(Boolean));
+    let added = 0;
+    convs.sort((a, b) => a.created - b.created);
+    for (const c of convs) {
+      if (known.has(c.key)) continue;
+      const item = { id: uid(), title: c.title, messages: c.messages, source: c.source };
+      await saveChat(item);
+      index.unshift({ id: item.id, title: item.title, updated: c.created || Date.now(), source: c.source, importKey: c.key });
+      added++;
+    }
+    await saveIndex(); renderList();
+    $('importStatus').textContent = added ? `导入了 ${added} 段聊天记录。` : '这些之前已经导入过了。';
+  } catch {
+    $('importStatus').textContent = '没认出这个文件。请选 Claude 或 ChatGPT 官方导出的 conversations.json。';
+  }
+}
+async function exportAll() {
+  const chats = [];
+  for (const c of index) { const full = await DB.get('chat:' + c.id); if (full) chats.push(full); }
+  const data = { app: '知言', exported: new Date().toISOString(), persona: P(), memories, diary, events, wishes, songs, chats };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+  a.download = `知言备份-${ymd(new Date())}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+$('newBtn').onclick = () => openChat(null);
+$('newBtn2').onclick = () => openChat(null);
+$('menuBtn').onclick = () => $('app').classList.add('open');
+$('scrim').onclick = () => $('app').classList.remove('open');
+document.addEventListener('click', e => {
+  const o = e.target.closest('[data-open]'); if (o) { openSheet(o.dataset.open); return; }
+  if (e.target.closest('[data-close]') || e.target.classList.contains('sheet-bg')) closeSheets();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
+
+$('list').addEventListener('click', e => {
+  const d = e.target.closest('[data-del]'); if (d) { deleteChat(d.dataset.del); return; }
+  const s = e.target.closest('[data-id]'); if (s) openChat(s.dataset.id);
+});
+$('list').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.id) openChat(e.target.dataset.id); });
+
+$('home').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) send(c.textContent); });
+$('thread').addEventListener('click', e => {
+  if (e.target.id === 'olderBtn') { showAll = true; renderThread(); return; }
+  const c = e.target.closest('[data-copy]'); if (c) { copyText(stripTags(chat.messages[+c.dataset.copy]?.content), c); return; }
+  const s = e.target.closest('[data-speak]'); if (s) { speak(chat.messages[+s.dataset.speak]?.content || ''); return; }
+  const pic = e.target.closest('img[data-img]');
+  if (pic?.src) { const lb = document.createElement('div'); lb.className = 'lightbox'; lb.innerHTML = `<img src="${pic.src}" alt="">`; lb.onclick = () => lb.remove(); document.body.appendChild(lb); return; }
+  const sv = e.target.closest('[data-saveimg]');
+  if (sv) { imgSrc(sv.dataset.saveimg).then(url => { if (!url) return; const a = document.createElement('a'); a.href = url; a.download = `知言-${ymd(new Date())}.png`; a.target = '_blank'; a.click(); }); return; }
+  const rd = e.target.closest('[data-redraw]');
+  if (rd) { const card = findCard(rd.dataset.redraw); if (card) drawCard(chat, card); }
+});
+
+const input = $('input');
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+  if (!controller) $('sendBtn').disabled = !input.value.trim();
+});
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(hover: hover)').matches) { e.preventDefault(); submit(); }
+});
+function submit() { const t = input.value; input.value = ''; input.dispatchEvent(new Event('input')); send(t); }
+$('sendBtn').onclick = () => { if (controller) controller.abort(); else submit(); };
+
+$('pAvPick').onclick = () => $('pAvFile').click();
+$('pAvBtn').onclick = () => $('pAvFile').click();
+$('pAvFile').onchange = async e => {
+  const f = e.target.files?.[0]; e.target.value = '';
+  if (!f) return;
+  try { draftAvatar = await resizeImage(f); renderPersonaAv(); } catch { toast('这张图片读不了，换一张试试'); }
+};
+$('pAvReset').onclick = () => { draftAvatar = ''; renderPersonaAv(); };
+$('pName').addEventListener('input', renderPersonaAv);
+$('swatches').addEventListener('click', e => {
+  const b = e.target.closest('[data-accent]'); if (!b) return;
+  settings.accent = b.dataset.accent; applyAccent();
+  document.querySelectorAll('#swatches button').forEach(x => x.classList.toggle('on', x === b));
+});
+$('styleSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-style]'); if (!b) return;
+  settings.glass = b.dataset.style === 'glass'; applyLook(); fillLook();
+});
+$('wallBlur').addEventListener('input', e => { settings.wallBlur = +e.target.value; applyLook(); });
+$('wallPick').onclick = () => $('wallFile').click();
+$('wallFile').onchange = async e => {
+  const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+  try { await DB.set('wallpaper', await shrinkPhoto(f)); await loadWall(); toast('背景换好了'); }
+  catch { toast('这张图读不了，换一张试试'); }
+};
+$('wallReset').onclick = async () => { await DB.set('wallpaper', null); await loadWall(); };
+$('pSave').onclick = async () => {
+  settings.persona = {
+    name: $('pName').value.trim() || DEFAULT_PERSONA.name,
+    rel: $('pRel').value,
+    nick: $('pNick').value.trim(),
+    since: $('pSince').value,
+    traits: $('pTraits').value.trim() || DEFAULT_PERSONA.traits,
+    avatar: draftAvatar,
+  };
+  await saveSettings();
+  closeSheets(); renderShell(); renderThread(); toast('保存好了');
+};
+
+$('pushOn').onclick = async () => {
+  $('pushStatus').textContent = '正在开启…';
+  try { await enablePush(); $('pushStatus').textContent = '开好了。关掉 App 也能收到 TA 的消息'; $('pushOn').textContent = '重新连接'; }
+  catch (e) { $('pushStatus').textContent = e.message; }
+};
+$('pushTest').onclick = async () => {
+  $('pushStatus').textContent = 'TA 在想说什么…';
+  try {
+    await applySettings();
+    await syncPush();
+    const r = await pushFetch('/test', { method: 'POST' });
+    $('pushStatus').textContent = r.pushed ? `发出去了：${r.text}` : `TA 说：${r.text}（${r.note || '还没开启通知，打开 App 时才能看到'}）`;
+    setTimeout(pullInbox, 1500);
+  } catch (e) { $('pushStatus').textContent = e.message; }
+};
+$('fImg').addEventListener('change', () => { settings.img = $('fImg').value; fillImgKey(); });
+$('provSeg').addEventListener('click', e => { const b = e.target.closest('[data-prov]'); if (b) fillSettings(b.dataset.prov); });
+$('showKey').onclick = () => { const k = $('fKey'); k.type = k.type === 'password' ? 'text' : 'password'; $('showKey').textContent = k.type === 'password' ? '显示' : '隐藏'; };
+$('saveSet').onclick = async () => { await applySettings(); closeSheets(); toast('已保存'); };
+$('testBtn').onclick = testConnection;
+
+$('calPrev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCal(); };
+$('calNext').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCal(); };
+$('calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { calSel = b.dataset.day; renderCal(); } });
+$('calDay').addEventListener('click', async e => {
+  const b = e.target.closest('[data-evdel]'); if (!b) return;
+  events = events.filter(x => x.id !== b.dataset.evdel);
+  await DB.set('events', events); renderCal(); renderHome();
+});
+$('evAdd').onclick = async () => {
+  const title = $('evTitle').value.trim(); if (!title) { $('evTitle').focus(); return; }
+  events.push({ id: uid(), date: calSel, time: $('evTime').value, title, anniv: $('evAnniv').checked });
+  $('evTitle').value = ''; $('evTime').value = ''; $('evAnniv').checked = false;
+  await DB.set('events', events); renderCal(); renderHome(); toast('记上了');
+};
+
+$('trkPick').onclick = () => $('trkFile').click();
+$('trkFile').onchange = async e => {
+  const files = [...(e.target.files || [])]; e.target.value = '';
+  for (const f of files) {
+    const id = uid();
+    try { await DB.set('track:' + id, f); tracks.push({ id, name: f.name.replace(/\.[^.]+$/, '') }); }
+    catch { toast('空间不够，有的歌没存进来'); break; }
+  }
+  await DB.set('tracks', tracks); renderMusic();
+};
+$('trkList').addEventListener('click', async e => {
+  const p = e.target.closest('[data-play]'); if (p) { await playTrack(p.dataset.play); renderMusic(); return; }
+  const d = e.target.closest('[data-trkdel]'); if (!d) return;
+  if (playing === d.dataset.trkdel) { audio.pause(); $('player').hidden = true; playing = null; }
+  tracks = tracks.filter(t => t.id !== d.dataset.trkdel);
+  await DB.del('track:' + d.dataset.trkdel); await DB.set('tracks', tracks); renderMusic();
+});
+$('songList').addEventListener('click', async e => {
+  const d = e.target.closest('[data-songdel]'); if (!d) return;
+  songs = songs.filter(s => s.id !== d.dataset.songdel); await DB.set('songs', songs); renderMusic();
+});
+$('askSongs').onclick = () => { closeSheets(); send('根据我现在的心情，推荐几首歌吧'); };
+$('playToggle').onclick = () => audio.paused ? audio.play() : audio.pause();
+$('playNext').onclick = nextTrack;
+$('playClose').onclick = () => { audio.pause(); $('player').hidden = true; };
+
+$('wishAdd').onclick = async () => {
+  const name = $('wishInput').value.trim(); if (!name) return;
+  wishes.unshift({ id: uid(), name, done: false, added: ymd(new Date()) });
+  $('wishInput').value = ''; await DB.set('wishes', wishes); renderWishes();
+};
+$('wishList').addEventListener('click', async e => {
+  const d = e.target.closest('[data-wishdel]');
+  if (d) { wishes = wishes.filter(w => w.id !== d.dataset.wishdel); await DB.set('wishes', wishes); renderWishes(); }
+});
+$('wishList').addEventListener('change', async e => {
+  const c = e.target.closest('[data-wishdone]'); if (!c) return;
+  const w = wishes.find(x => x.id === c.dataset.wishdone); if (w) w.done = c.checked;
+  await DB.set('wishes', wishes); renderWishes();
+});
+
+$('memAdd').onclick = async () => {
+  const t = $('memInput').value.trim(); if (!t) return;
+  memories.unshift({ id: uid(), text: t, created: new Date().toLocaleDateString('zh-CN') });
+  $('memInput').value = ''; await DB.set('memories', memories); renderMemories();
+};
+$('memList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-memdel]'); if (!b) return;
+  memories = memories.filter(m => m.id !== b.dataset.memdel); await DB.set('memories', memories); renderMemories();
+});
+$('memClear').onclick = async () => { if (!confirm('清空全部记忆？')) return; memories = []; await DB.set('memories', memories); renderMemories(); };
+$('importFile').onchange = e => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = ''; };
+$('importPick').onclick = () => $('importFile').click();
+$('exportBtn').onclick = exportAll;
+$('moods').addEventListener('click', e => { const b = e.target.closest('[data-mood]'); if (b) { pickedMood = b.dataset.mood; renderDiary(); } });
+$('diarySave').onclick = async () => {
+  diary.unshift({ id: uid(), date: new Date().toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }), mood: pickedMood, note: $('diaryNote').value.trim() });
+  $('diaryNote').value = ''; await DB.set('diary', diary); renderDiary(); toast('记下了');
+};
+$('diaryList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-diarydel]'); if (!b) return;
+  diary = diary.filter(d => d.id !== b.dataset.diarydel); await DB.set('diary', diary); renderDiary();
+});
+
+(async () => {
+  try {
+    const saved = await DB.get('settings') || {};
+    settings = { ...settings, ...saved, persona: { ...DEFAULT_PERSONA, ...(saved.persona || {}) } };
+    index = await DB.get('chatIndex') || [];
+    memories = await DB.get('memories') || [];
+    diary = await DB.get('diary') || [];
+    events = await DB.get('events') || [];
+    wishes = await DB.get('wishes') || [];
+    songs = await DB.get('songs') || [];
+    tracks = await DB.get('tracks') || [];
+    for (const p of Object.keys(PROVIDERS)) configured[p] = !!(await loadSecret(p));
+    await loadWall();
+    await refreshImgReady();
+  } catch {
+    toast('本地存储不可用，数据可能保存不了');
+  }
+  setBusy(false);
+  await openChat(null);
+  if (!Object.values(configured).some(Boolean)) { markActive(); setTimeout(() => openSheet('setSheet'), 300); }
+  else onReturn();
+})();
+
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
