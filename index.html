@@ -485,7 +485,7 @@
         <div id="countdown"></div>
         <div class="tiles" style="margin-bottom:22px"><button class="tile" type="button" data-open="albumSheet"><span class="ic">▨</span><span><b>我们的相册</b><small id="albumSub">照片和 TA 画的图</small></span></button><button class="tile" type="button" data-open="firstSheet"><span class="ic">✧</span><span><b>第一次</b><small id="firstSub">一起的第一次</small></span></button></div>
         <h2>TA 记得的事</h2>
-        <p class="lead">新对话也不会忘记。聊天时说"请记住……"也会存进来，你随时可以查看、添加或删除。</p>
+        <p class="lead">新对话也不会忘记。聊天时 TA 会自己把值得记的事存进来，你说"请记住……"也可以，随时能查看、添加或删除。</p>
         <div class="memrow"><input id="memInput" maxlength="200" placeholder="例如：我住在杭州，喜欢猫" aria-label="新的记忆"><button class="btn primary" type="button" id="memAdd">记住</button></div>
         <div class="stack" id="memList"></div>
         <h2>导入与备份</h2>
@@ -756,7 +756,7 @@
     <div class="row"><button class="btn" type="button" id="pushOn">开启通知</button><button class="btn" type="button" id="pushTest">让 TA 现在发一条</button></div>
     <span class="status" id="pushStatus"></span>
     <p class="note">Key 加密保存在这台设备的浏览器里，只会发给你选的供应商（或你填的转发地址）。开启"TA 主动找你"的通知后，聊天用的 Key 也会同步到你自己的 Worker 上，让它能替 TA 说话。</p>
-    <div class="row"><button class="btn" type="button" id="testBtn">测试连接</button><span class="status" id="setStatus"></span></div>
+    <div class="row"><button class="btn" type="button" id="testBtn">测试连接</button><button class="btn" type="button" id="balBtn">查余额</button><span class="status" id="setStatus"></span></div>
     <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="saveSet">保存</button></div>
   </div>
 </div>
@@ -861,6 +861,19 @@ let currentId = null, chat = null, showAll = false, controller = null;
 const P = () => settings.persona;
 const model = (p = settings.provider) => settings.models[p] || PROVIDERS[p].models[0];
 const base = (p = settings.provider) => (settings.bases[p] || PROVIDERS[p].base).replace(/\/+$/, '');
+
+// 记忆总量封顶，聊天时只带最近的一部分，免得上下文越滚越长、越聊越贵
+const MEM_MAX = 80, MEM_USE = 40;
+const memKey = s => s.replace(/[\s，。,.、!！?？~～"'"'']/g, '').toLowerCase();
+function addMemory(text) {
+  const t = String(text || '').trim().slice(0, 200);
+  const k = memKey(t);
+  if (!k || memories.some(m => memKey(m.text) === k)) return false;
+  memories.unshift({ id: uid(), text: t, created: new Date().toLocaleDateString('zh-CN') });
+  if (memories.length > MEM_MAX) memories.length = MEM_MAX;
+  return true;
+}
+const memoryLines = (n = MEM_USE) => memories.slice(0, n).map(m => '- ' + m.text.slice(0, 100)).join('\n');
 const saveSettings = () => DB.set('settings', settings);
 const saveIndex = () => DB.set('chatIndex', index);
 const saveChat = c => DB.set('chat:' + c.id, c);
@@ -1129,7 +1142,7 @@ function systemPrompt() {
 - 推荐歌，每首一个：[[歌|歌名|歌手]]
 - 对方说想买什么，或你们一起挑中了东西：[[心愿|商品名]]
 - 值得去小红书搜的：[[小红书|关键词]]
-- 对方告诉你值得长期记住的事：[[记住|内容]]
+- 值得长期记住的事：[[记住|内容]]。不用等对方开口——对方的喜好、习惯、在意的人和事、重要日子、正在忙的事，你觉得以后还该记得的，就顺手记下来。一条写成一句完整的话，别记一次性的闲聊，也别把已经记过的再记一遍
 - 对方说花了钱或收到钱：[[记账|支出或收入|金额|类别|备注]]（类别从这些里选：支出 ${CATS.out.join('、')}；收入 ${CATS.in.join('、')}）
 - 对方说喝了水：[[喝水|杯数]]
 - 特别的时候（纪念日、对方难过、对方做成了什么事）可以从小金库里拿钱给对方发红包或送小礼物（这是对方真的存进来的钱，领了就会真的去花），别太频繁，花的不能超过余额：[[红包|金额|一句话]]、[[礼物|礼物名|价格]]
@@ -1137,7 +1150,7 @@ function systemPrompt() {
 - 对方想看图、让你画画、要头像或壁纸，或你想让对方看看某个画面：[[画|画面描述]]（写清主体、场景、风格、光线和色调，一次最多一张）` : ''}
 只在确实需要时用，一次最多 5 个。标记之外照常说话。${imgReady ? '' : '\n你现在还不能画图；对方让你画的话，温柔地告诉对方在设置的"画图"里填一个智谱的 Key 就可以（免费）。'}`,
   ];
-  if (settings.memoryOn && memories.length) parts.push(`你记得的关于${nick}的事：\n` + memories.map(m => '- ' + m.text).join('\n'));
+  if (settings.memoryOn && memories.length) parts.push(`你记得的关于${nick}的事：\n` + memoryLines());
   const up = upcoming(14);
   if (up.length) parts.push('日历里接下来的安排：\n' + up.map(e => `- ${e.on}${e.time ? ' ' + e.time : ''} ${e.title}`).join('\n'));
   const life = lifeContext();
@@ -1349,7 +1362,7 @@ async function applyTags(bot) {
     } else if (type === '记住') {
       const text = f.join('|').slice(0, 200);
       if (!text) continue;
-      if (!memories.some(m => m.text === text)) { memories.unshift({ id: uid(), text, created: new Date().toLocaleDateString('zh-CN') }); changed.memories = true; }
+      if (addMemory(text)) changed.memories = true;
       cards.push({ type: 'mem', text });
     }
   }
@@ -1469,7 +1482,7 @@ function personaBrief() {
   const p = P(), nick = p.nick || '你', days = daysTogether();
   const out = [`你是${p.name || '阿言'}，是对方的${p.rel || '恋人'}。${p.traits || ''}`,
     `你叫对方"${nick}"。说话像微信聊天，口语、自然、有温度。你关心对方，但从不控制对方、不用内疚感留住对方。${days ? `你们在一起第 ${days} 天。` : ''}`];
-  if (settings.memoryOn && memories.length) out.push(`你记得的关于${nick}的事：\n` + memories.slice(0, 30).map(m => '- ' + m.text.slice(0, 100)).join('\n'));
+  if (settings.memoryOn && memories.length) out.push(`你记得的关于${nick}的事：\n` + memoryLines(30));
   return out.join('\n');
 }
 async function syncPush(extra = {}, keepalive = false) {
@@ -1575,11 +1588,7 @@ async function send(text, imgs = [], extra = {}) {
 
   const remember = text.match(/^(?:请)?记住[:：,，\s]*([\s\S]+)/);
   if (remember) {
-    const t = remember[1].trim().slice(0, 200);
-    if (!memories.some(m => m.text === t)) {
-      memories.unshift({ id: uid(), text: t, created: new Date().toLocaleDateString('zh-CN') });
-      await DB.set('memories', memories);
-    }
+    if (addMemory(remember[1])) await DB.set('memories', memories);
   }
 
   if (!chat) { chat = { id: uid(), title: (text || '一张照片').slice(0, 24), messages: [] }; currentId = chat.id; }
@@ -1781,6 +1790,26 @@ async function testConnection() {
     $('setStatus').textContent = e instanceof TypeError ? '连不上：可能需要换成转发地址' : e.message;
   }
   document.querySelectorAll('#provSeg button').forEach(b => { b.querySelector('small').textContent = configured[b.dataset.prov] ? '已配置' : '未配置'; });
+}
+
+// 只有 DeepSeek 有公开的余额接口；OpenAI 早已下线，Claude 和智谱没有
+async function checkBalance() {
+  await applySettings();
+  const p = settings.provider;
+  if (p !== 'deepseek') { $('setStatus').textContent = `${PROVIDERS[p].name} 没有公开的余额接口，查不了`; return; }
+  const key = await loadSecret(p);
+  if (!key) { $('setStatus').textContent = '请先填 API Key'; return; }
+  $('setStatus').textContent = '正在查…';
+  try {
+    const r = await fetch(base(p) + '/user/balance', { headers: { Authorization: 'Bearer ' + key } });
+    if (!r.ok) throw new Error(httpError(r.status, await r.text().catch(() => ''), PROVIDERS[p].name));
+    const j = await r.json();
+    const infos = j.balance_infos || [];
+    const money = infos.map(b => `${b.currency === 'CNY' ? '¥' : b.currency + ' '}${b.total_balance}（充值 ${b.topped_up_balance}，赠送 ${b.granted_balance}）`).join('　');
+    $('setStatus').textContent = (money || '没查到金额') + (j.is_available ? '' : ' · 余额不足了');
+  } catch (e) {
+    $('setStatus').textContent = e instanceof TypeError ? '查不到：这个接口可能不让网页直接调，换成转发地址再试' : e.message;
+  }
 }
 
 let calMonth = new Date(), calSel = ymd(new Date());
@@ -2651,6 +2680,7 @@ $('fModelSel').addEventListener('change', () => {
 $('showKey').onclick = () => { const k = $('fKey'); k.type = k.type === 'password' ? 'text' : 'password'; $('showKey').textContent = k.type === 'password' ? '显示' : '隐藏'; };
 $('saveSet').onclick = async () => { await applySettings(); closeSheets(); toast('已保存'); };
 $('testBtn').onclick = testConnection;
+$('balBtn').onclick = checkBalance;
 
 $('calPrev').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCal(); };
 $('calNext').onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCal(); };
@@ -2727,7 +2757,7 @@ $('wishList').addEventListener('change', async e => {
 
 $('memAdd').onclick = async () => {
   const t = $('memInput').value.trim(); if (!t) return;
-  memories.unshift({ id: uid(), text: t, created: new Date().toLocaleDateString('zh-CN') });
+  if (!addMemory(t)) { toast('这条已经记过了'); return; }
   $('memInput').value = ''; await DB.set('memories', memories); renderMemories();
 };
 $('memList').addEventListener('click', async e => {
