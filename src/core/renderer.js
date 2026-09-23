@@ -1,6 +1,7 @@
 // 渲染层抽象。
 //
-// 第一阶段只做 2D：动态背景 + 轻量粒子 + 简单动画状态机。
+// 现在画的是房间本身：动态背景 + 窗 + 桌子 + 桌上的东西 + 轻量粒子。
+// 角色不画 —— 2D 小人试出来不好看，宁可不画，也不放难看的东西在首页。
 // 但架构把口子留好了 —— Live2D / 3D / Unity / Godot 以后注册进来就行，
 // 上层（scene.js、avatar.js）一行都不用改。
 //
@@ -35,7 +36,7 @@ export const RESERVED_RENDERERS = {
 };
 
 // ---------------------------------------------------------------- 绘制清单
-/** 桌面前沿的高度。角色站在桌子后面，道具摆在桌面上，都以这条线为准。 */
+/** 桌面前沿的高度。道具摆在桌面上，都以这条线为准。 */
 export const DESK_Y = 0.78;
 
 /**
@@ -60,13 +61,15 @@ const PROP_LAYOUT = {
 };
 
 /**
- * 把场景 + 姿势算成绘制清单（纯函数，可测）。
+ * 把场景算成绘制清单（纯函数，可测）。
  * 坐标全是 0–1 的相对值，渲染时再乘画布尺寸 —— 换分辨率不用改。
  *
- * z 的分层很重要：角色(6) 在桌子(7) 后面，桌子挡住角色下半身，
- * 道具(8+) 再摆到桌面上。这样才像一个房间，而不是几个方块浮在那儿。
+ * z 的分层：房间(-5) → 桌子(7) → 桌上的东西(8+) → 粒子(20)。
+ * 6 这一层空着，是留给以后的角色的。
+ *
+ * pose 现在用不上（不画人了），签名留着，接回角色时不用改调用方。
  */
-export function buildDrawList(scene, pose, { width = 1, height = 1 } = {}) {
+export function buildDrawList(scene, pose = null, { width = 1, height = 1 } = {}) {
   const list = [];
   const p = scene.palette;
 
@@ -77,19 +80,9 @@ export function buildDrawList(scene, pose, { width = 1, height = 1 } = {}) {
     list.push({ type: 'glow', color: p.glow, x: 0.87, y: DESK_Y - 0.15, radius: 0.30, alpha: 0.55 * (1 - scene.light.level), z: 7.5 });
   }
 
-  // 角色：呼吸只影响纵向缩放，幅度很小，看着才自然
-  const breathScale = 1 + pose.breath * 0.012;
-  list.push({
-    type: 'avatar',
-    state: pose.state,
-    expression: pose.expression,
-    x: 0.5, y: 0.52, scale: breathScale, z: 6,
-    deskY: DESK_Y,
-    blink: pose.blink,
-    gaze: pose.gaze,
-    alpha: 0.35 + 0.65 * pose.enter,
-  });
-
+  // 这里本来画一个 2D 角色，试出来不好看，就不画了。
+  // 角色状态（avatar.js）依然在跑，只是交给界面用一行字表达，不占像素。
+  // 以后要接 Live2D 或像样的美术资产，在 z=6 这一层插回来就行 —— 桌子在 7，会自然挡住下半身。
   list.push({ type: 'desk', color: p.near, y: DESK_Y, z: 7 });
 
   for (const name of scene.props) {
@@ -112,7 +105,6 @@ function scaleItem(item, w, h) {
   if (out.y != null) out.y *= h;
   if (out.w != null) out.w *= w;
   if (out.h != null) out.h *= h;
-  if (out.deskY != null) out.deskY *= h;
   if (out.radius != null) out.radius *= Math.min(w, h);
   return out;
 }
@@ -172,85 +164,6 @@ export function createCanvas2DRenderer({ canvas, dpr = (globalThis.devicePixelRa
         ctx.fillStyle = glow;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
       }
-    }
-    ctx.restore();
-  }
-
-  function drawAvatar(it, w, h) {
-    const unit = Math.min(w, h) * 0.19;
-    const deskY = it.deskY ?? h * 0.78;
-    ctx.save();
-    ctx.globalAlpha = it.alpha;
-    ctx.translate(it.x, it.y);
-    ctx.scale(1, it.scale);
-
-    // 身体：肩膀往下基本竖直，不做成一个大帐篷。
-    // 一直画到桌面以下，由桌子挡住下半身，人才像站在桌后。
-    const bodyBottom = (deskY - it.y) / it.scale + unit * 0.9;
-    ctx.fillStyle = 'rgba(64,72,88,0.95)';
-    ctx.beginPath();
-    ctx.moveTo(-unit * 0.60, bodyBottom);
-    ctx.lineTo(-unit * 0.56, unit * 0.34);
-    ctx.quadraticCurveTo(-unit * 0.50, unit * 0.02, -unit * 0.24, -unit * 0.04);
-    ctx.lineTo(unit * 0.24, -unit * 0.04);
-    ctx.quadraticCurveTo(unit * 0.50, unit * 0.02, unit * 0.56, unit * 0.34);
-    ctx.lineTo(unit * 0.60, bodyBottom);
-    ctx.closePath(); ctx.fill();
-    // 领口，让肩线不至于太平
-    ctx.fillStyle = 'rgba(82,92,110,0.95)';
-    ctx.beginPath();
-    ctx.moveTo(-unit * 0.17, -unit * 0.04);
-    ctx.quadraticCurveTo(0, unit * 0.16, unit * 0.17, -unit * 0.04);
-    ctx.closePath(); ctx.fill();
-
-    // 脖子
-    ctx.fillStyle = 'rgba(226,209,196,0.97)';
-    ctx.fillRect(-unit * 0.11, -unit * 0.22, unit * 0.22, unit * 0.3);
-
-    const hx = it.gaze.x * unit * 0.22, hy = -unit * 0.62 + it.gaze.y * unit * 0.16;
-
-    // 头发（后层）
-    ctx.fillStyle = 'rgba(48,42,44,0.95)';
-    ctx.beginPath(); ctx.ellipse(hx, hy + unit * 0.06, unit * 0.58, unit * 0.62, 0, 0, Math.PI * 2); ctx.fill();
-
-    // 脸
-    ctx.fillStyle = 'rgba(243,229,217,0.98)';
-    ctx.beginPath(); ctx.ellipse(hx, hy, unit * 0.48, unit * 0.52, 0, 0, Math.PI * 2); ctx.fill();
-
-    // 刘海
-    ctx.fillStyle = 'rgba(48,42,44,0.95)';
-    ctx.beginPath();
-    ctx.ellipse(hx, hy - unit * 0.26, unit * 0.50, unit * 0.30, 0, Math.PI, 0);
-    ctx.fill();
-
-    // 眼睛（blink 压扁）
-    const eyeY = hy + unit * 0.04;
-    const eyeDX = unit * 0.19;
-    const open = Math.max(0.06, 1 - it.blink);
-    ctx.fillStyle = 'rgba(38,36,42,0.92)';
-    for (const s of [-1, 1]) {
-      ctx.beginPath();
-      ctx.ellipse(hx + s * eyeDX + it.gaze.x * unit * 0.12, eyeY, unit * 0.058, unit * 0.082 * open, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    // 腮红，暖一点
-    ctx.fillStyle = 'rgba(214,138,138,0.16)';
-    for (const s of [-1, 1]) {
-      ctx.beginPath(); ctx.ellipse(hx + s * unit * 0.30, eyeY + unit * 0.13, unit * 0.10, unit * 0.055, 0, 0, Math.PI * 2); ctx.fill();
-    }
-
-    // 嘴：按表情换弧度
-    const mouth = { smile: 0.13, soft: 0.07, neutral: 0.0, concerned: -0.08, surprised: 0.0, sleepy: -0.03 }[it.expression] ?? 0;
-    ctx.strokeStyle = 'rgba(120,72,70,0.8)';
-    ctx.lineWidth = Math.max(1, unit * 0.035);
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    const my = hy + unit * 0.26;
-    ctx.moveTo(hx - unit * 0.10, my);
-    ctx.quadraticCurveTo(hx, my + mouth * unit, hx + unit * 0.10, my);
-    ctx.stroke();
-    if (it.expression === 'surprised') {
-      ctx.beginPath(); ctx.ellipse(hx, my, unit * 0.06, unit * 0.07, 0, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.restore();
   }
@@ -408,7 +321,6 @@ export function createCanvas2DRenderer({ canvas, dpr = (globalThis.devicePixelRa
             break;
           }
           case 'prop': drawProp(it, w, h); break;
-          case 'avatar': drawAvatar(it, w, h); break;
           case 'particles': drawParticles(it.kind, it.count, w, h, t); break;
         }
       }

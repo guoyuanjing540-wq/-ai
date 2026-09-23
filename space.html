@@ -119,6 +119,7 @@ button.sm{padding:4px 9px;font-size:12px;border-radius:8px}
 <div class="hud" id="hud">
   <div class="line" id="hudTime"></div>
   <div class="desc" id="hudDesc"></div>
+  <div class="line" id="hudWho" style="margin-top:6px"></div>
 </div>
 
 <!-- 朋友圈 -->
@@ -250,11 +251,17 @@ function refreshScene() {
     ({dawn:'清晨',day:'白天',dusk:'傍晚',night:'夜里'}[scene.period]) +
     ({clear:'',cloudy:' · 阴',rain:' · 雨'}[scene.weather]);
   $('hudDesc').textContent = scene.describe();
+  const STATE_TEXT = {
+    idle: 'TA 在旁边', reading: 'TA 在看书', working: 'TA 在忙',
+    looking_at_user: 'TA 看着你', thinking: 'TA 在想事情', welcome: 'TA 抬头看了你一眼',
+  };
+  const outfit = lastOutfit ? ` · 穿着${lastOutfit}` : '';
+  $('hudWho').textContent = (STATE_TEXT[companion.avatar.state] || 'TA 在旁边') + outfit;
 }
+let lastOutfit = '';
 function frame(t) {
-  companion.avatar.tick();
-  const pose = companion.avatar.pose();
-  renderer.render(buildDrawList(scene, pose, { width: $('sky').width, height: $('sky').height }), t);
+  companion.avatar.tick();     // 状态机照常跑，只是不画人
+  renderer.render(buildDrawList(scene, null, { width: $('sky').width, height: $('sky').height }), t);
   requestAnimationFrame(frame);
 }
 function onResize() { renderer.resize(); }
@@ -482,8 +489,9 @@ async function drawSet() {
       <button class="chip" id="unlockFit">交给 TA 自己决定</button>
       <button class="chip" id="favFit">我喜欢这套</button></div>
     <div class="muted" style="margin-top:6px">示例资产只有几件，商城和抽卡不做。</div>`;
+  lastOutfit = cur.outfit?.name || '';
   $('wardrobeBox').querySelectorAll('[data-fit]').forEach(b =>
-    b.onclick = async () => { await companion.wardrobe.wear(b.dataset.fit, { byUser: true }); drawSet(); });
+    b.onclick = async () => { await companion.wardrobe.wear(b.dataset.fit, { byUser: true }); drawSet(); refreshScene(); });
   $('unlockFit').onclick = async () => { await companion.wardrobe.unlock(); await companion.wardrobe.autoSelect(companion.scene()); drawSet(); };
   $('favFit').onclick = async () => { if (cur.outfit) { await companion.wardrobe.favorite(cur.outfit.id); alert('记住了，以后会偏向这套。'); } };
 
@@ -534,7 +542,8 @@ async function drawSet() {
 // ------------------------------------------------------------ 启动
 (async function start() {
   onResize();
-  await companion.enter();                 // 欢迎动作 + 场景自动换装
+  const entered = await companion.enter();   // 欢迎动作 + 场景自动换装
+  lastOutfit = entered.outfit?.outfit?.name || '';
   refreshScene();
   requestAnimationFrame(frame);
   setInterval(refreshScene, 60000);        // 每分钟跟一次时间

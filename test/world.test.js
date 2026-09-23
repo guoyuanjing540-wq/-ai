@@ -318,21 +318,34 @@ test('自主性：最小间隔内不重复跑', async () => {
 test('绘制清单：纯数据，按 z 排好序', () => {
   const clock = clockAt('2026-09-23T23:00:00+08:00');
   const scene = resolveScene({ clock, project: { id: 'p', kind: 'novel', name: 'X' } });
-  const a = createAvatarMachine({ now: () => clock.now() });
-  const list = buildDrawList(scene, a.pose());
+  const list = buildDrawList(scene);
   assert.ok(list.length > 3);
   for (let i = 1; i < list.length; i++) assert.ok(list[i].z >= list[i - 1].z, 'z 没排序');
-  assert.ok(list.some(x => x.type === 'avatar'));
   assert.ok(list.some(x => x.type === 'background'));
+  assert.ok(list.some(x => x.type === 'desk'));
   assert.ok(list.some(x => x.type === 'particles'));
   assert.ok(list.some(x => x.type === 'prop' && x.name === 'manuscript'));
+});
+
+test('首页不画人 —— 难看的 2D 小人已经拿掉了', () => {
+  const clock = clockAt('2026-09-23T23:00:00+08:00');
+  const list = buildDrawList(resolveScene({ clock }));
+  assert.equal(list.some(x => x.type === 'avatar'), false, '又把小人画回来了');
+});
+
+test('角色状态机还在跑，只是不占像素', () => {
+  const clock = clockAt('2026-09-23T23:00:00+08:00');
+  const a = createAvatarMachine({ now: () => clock.now() });
+  a.send('ai.read');
+  assert.equal(a.state, 'reading');
+  assert.ok(typeof a.pose().breath === 'number');
 });
 
 test('绘制清单：道具坐在桌面上，不悬空', async () => {
   const { DESK_Y } = await import('../src/core/renderer.js');
   const clock = clockAt('2026-09-23T23:00:00+08:00');
   const scene = resolveScene({ clock, project: { id: 'p', kind: 'software', name: '知言' } });
-  const list = buildDrawList(scene, createAvatarMachine({ now: () => clock.now() }).pose());
+  const list = buildDrawList(scene);
   const props = list.filter(x => x.type === 'prop' && x.name !== 'window_rain');
   assert.ok(props.length > 0);
   for (const p of props) {
@@ -341,23 +354,23 @@ test('绘制清单：道具坐在桌面上，不悬空', async () => {
   }
 });
 
-test('绘制清单：桌子画在角色前面，挡住下半身', () => {
+test('绘制清单：桌上的东西画在桌子之后', () => {
   const clock = clockAt('2026-09-23T23:00:00+08:00');
-  const list = buildDrawList(resolveScene({ clock }), createAvatarMachine({ now: () => clock.now() }).pose());
-  const avatar = list.findIndex(x => x.type === 'avatar');
+  const list = buildDrawList(resolveScene({ clock }));
   const desk = list.findIndex(x => x.type === 'desk');
-  assert.ok(desk > avatar, '桌子画在了角色后面，人会浮在桌上');
   const firstProp = list.findIndex(x => x.type === 'prop' && x.name !== 'window_rain');
+  assert.ok(desk >= 0);
   if (firstProp >= 0) assert.ok(firstProp > desk, '道具画到了桌子下面');
 });
 
-test('绘制清单：按画布尺寸缩放', () => {
+test('绘制清单：按画布尺寸缩放', async () => {
+  const { DESK_Y } = await import('../src/core/renderer.js');
   const clock = clockAt('2026-09-23T12:00:00+08:00');
-  const scene = resolveScene({ clock });
-  const pose = createAvatarMachine({ now: () => clock.now() }).pose();
-  const av = buildDrawList(scene, pose, { width: 800, height: 600 }).find(x => x.type === 'avatar');
-  assert.equal(av.x, 400);
-  assert.ok(Math.abs(av.y - 312) < 1);
+  const list = buildDrawList(resolveScene({ clock }), null, { width: 800, height: 600 });
+  const desk = list.find(x => x.type === 'desk');
+  assert.ok(Math.abs(desk.y - DESK_Y * 600) < 1e-6);
+  const mug = list.find(x => x.type === 'prop' && x.name === 'mug');
+  if (mug) assert.ok(mug.x > 1 && mug.x < 800, '道具没按画布宽度缩放');
 });
 
 test('粒子随场景变：雨天下雨，夜里萤火，久别积灰', () => {
