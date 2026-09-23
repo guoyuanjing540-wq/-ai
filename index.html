@@ -362,6 +362,63 @@
   .mic.on { color: #fff; background: var(--danger); }
   html.glass .perm, html.glass .svc button { -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%); box-shadow: var(--edge); }
 
+  /* 照片 / 动态 / 回忆 / 小金库 */
+  .tabs { grid-template-columns: repeat(5, 1fr); }
+  .tabs button { position: relative; }
+  .tabs .dot { position: absolute; top: 2px; left: calc(50% + 8px); width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+  .plus { flex: none; width: 36px; height: 36px; border-radius: 12px; border: 0; background: none; color: var(--muted); font-size: 24px; line-height: 1; display: grid; place-items: center; }
+  .plus.on { color: var(--accent); transform: rotate(45deg); }
+  .acts-row { max-width: 760px; margin: 0 auto 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .acts-row button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
+  .attach { max-width: 760px; margin: 0 auto 8px; display: flex; gap: 8px; }
+  .attach span { position: relative; }
+  .attach img { width: 64px; height: 64px; object-fit: cover; border-radius: 12px; display: block; }
+  .attach button { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: var(--ink); color: var(--ground); font-size: 12px; }
+  .uimgs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin: 2px 0 4px; }
+  .uimgs img { max-width: 200px; max-height: 240px; border-radius: 12px; display: block; cursor: zoom-in; }
+  .msg.user.pic { background: none; padding: 0; border: 0; box-shadow: none; }
+  html.glass .msg.user.pic { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .xfer { justify-self: end; width: 230px; border-radius: 14px; background: linear-gradient(135deg, #f7a23b, #f08a24); color: #fff; padding: 12px 14px; display: grid; gap: 2px; box-shadow: 0 6px 18px rgba(240,138,36,.25); }
+  .xfer b { font-size: 20px; }
+  .xfer small { opacity: .9; font-size: 12px; }
+  .evt { justify-self: center; font-size: 12px; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+  .hb { border-radius: 14px; padding: 14px; background: linear-gradient(135deg, #e5484d, #c9302c); color: #fff4d6; display: grid; gap: 6px; max-width: 260px; }
+  .hb .k, .hb .s { color: #ffe6b0; }
+  .hb b { font-size: 16px; }
+  .hb button { justify-self: start; border: 0; border-radius: 999px; background: #ffd27a; color: #9c1f1a; font-weight: 700; padding: 6px 18px; }
+  .hb.opened { opacity: .8; }
+  .post { border: 1px solid var(--line); background: var(--card); border-radius: 20px; padding: 14px 16px; display: grid; gap: 8px; margin-bottom: 14px; }
+  .post header { display: flex; gap: 10px; align-items: center; }
+  .post header .av { width: 38px; height: 38px; font-size: 16px; }
+  .post header small { display: block; color: var(--muted); font-size: 12px; }
+  .post p { margin: 0; white-space: pre-wrap; }
+  .post .pic { width: 100%; max-width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px; background: var(--ground); cursor: zoom-in; }
+  .post .ops { display: flex; gap: 16px; font-size: 13px; }
+  .post .ops button { border: 0; background: none; color: var(--muted); padding: 2px 0; }
+  .post .ops button.on { color: var(--danger); }
+  .post .ph { aspect-ratio: 1; border-radius: 14px; background: linear-gradient(110deg, var(--ground) 30%, color-mix(in srgb, var(--accent) 16%, var(--ground)) 50%, var(--ground) 70%); background-size: 250% 100%; animation: shimmer 1.6s linear infinite; }
+  .cmts { display: grid; gap: 4px; background: color-mix(in srgb, var(--muted) 8%, transparent); border-radius: 12px; padding: 8px 10px; font-size: 14px; }
+  .cmts b { font-weight: 600; color: var(--accent); }
+  .cmt-in { display: flex; gap: 8px; }
+  .cmt-in input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--ground); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
+  .cd { border-radius: 20px; padding: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, var(--card)), var(--card)); border: 1px solid var(--line); display: grid; gap: 2px; margin-bottom: 12px; }
+  .cd small { color: var(--muted); font-size: 12px; }
+  .cd b { font-family: var(--serif); font-size: 30px; font-weight: 600; color: var(--accent); line-height: 1.2; }
+  .cd span { font-size: 14px; }
+  .album { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .album figure { margin: 0; display: grid; gap: 2px; }
+  .album img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: var(--ground); cursor: zoom-in; }
+  .album figcaption { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl { display: grid; gap: 0; border-left: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); margin-left: 6px; padding-left: 16px; }
+  .tl div { position: relative; padding: 6px 0 10px; }
+  .tl div::before { content: ""; position: absolute; left: -22px; top: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .tl small { display: block; color: var(--muted); font-size: 12px; }
+  .progress { height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--muted) 18%, transparent); overflow: hidden; margin-top: 6px; }
+  .progress i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+  .wish-ops { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .wish-ops button { font-size: 12px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 10px; }
+  html.glass .post, html.glass .cd, html.glass .acts-row button { -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%); box-shadow: var(--edge); }
+
   .scrim { display: none; }
   @media (max-width: 760px) {
     .item .del { opacity: 1; }
@@ -400,7 +457,10 @@
       <button type="button" id="playClose" aria-label="关闭播放">✕</button>
     </div>
     <div class="composer">
+      <div class="acts-row" id="actsRow" hidden><button type="button" id="actPhoto">📷 照片</button><button type="button" id="actXfer">¥ 给 TA 转账</button><button type="button" data-prefill="帮我画一张：">✎ 画一张</button><input type="file" id="photoFile" accept="image/*" multiple hidden></div>
+      <div class="attach" id="attach" hidden></div>
       <div class="box">
+        <button class="plus" id="plusBtn" type="button" aria-label="更多">＋</button>
         <textarea id="input" rows="1" aria-label="输入消息"></textarea>
         <button class="mic" id="micBtn" type="button" aria-label="语音输入" hidden><svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"/></svg></button>
         <button class="send" id="sendBtn" type="button" aria-label="发送" disabled></button>
@@ -408,10 +468,23 @@
     </div>
     </section>
 
+    <section class="view" id="vFeed" hidden>
+      <div class="page"><div class="page-in">
+        <p class="eyebrow">Moments</p>
+        <h1 id="feedTitle">TA 的动态</h1>
+        <p class="lead">TA 自己的生活。点赞、评论，TA 都看得到。</p>
+        <div class="row" style="margin-bottom:14px"><button class="btn primary" type="button" id="feedNew">让 TA 发一条</button><span class="status" id="feedStatus"></span></div>
+        <div id="feed"></div>
+      </div></div>
+    </section>
+
     <section class="view" id="vMem" hidden>
       <div class="page"><div class="page-in">
         <p class="eyebrow" id="memEyebrow">Memory · On</p>
         <h1>我们的记忆</h1>
+        <div id="countdown"></div>
+        <div class="tiles" style="margin-bottom:22px"><button class="tile" type="button" data-open="albumSheet"><span class="ic">▨</span><span><b>我们的相册</b><small id="albumSub">照片和 TA 画的图</small></span></button><button class="tile" type="button" data-open="firstSheet"><span class="ic">✧</span><span><b>第一次</b><small id="firstSub">一起的第一次</small></span></button></div>
+        <h2>TA 记得的事</h2>
         <p class="lead">新对话也不会忘记。聊天时说"请记住……"也会存进来，你随时可以查看、添加或删除。</p>
         <div class="memrow"><input id="memInput" maxlength="200" placeholder="例如：我住在杭州，喜欢猫" aria-label="新的记忆"><button class="btn primary" type="button" id="memAdd">记住</button></div>
         <div class="stack" id="memList"></div>
@@ -446,6 +519,7 @@
         <div class="mlist">
           <button type="button" data-open="personaSheet"><span class="mi">♡</span>TA 的设定<span class="go">›</span></button>
           <button type="button" data-open="personaSheet" data-focus="swatches"><span class="mi">✦</span>个性装扮<small>主题色 · 毛玻璃 · 背景</small><span class="go">›</span></button>
+          <button type="button" data-open="walletSheet"><span class="mi">¥</span>TA 的小金库<small id="meWal"></small><span class="go">›</span></button>
           <button type="button" id="installBtn"><span class="mi">▣</span>添加到手机桌面<span class="go">›</span></button>
           <button type="button" data-open="setSheet"><span class="mi">⚙</span>模型与 Key<span class="go">›</span></button>
           <button type="button" data-open="setSheet" data-focus="fImg"><span class="mi">✎</span>画图<span class="go">›</span></button>
@@ -458,6 +532,7 @@
 
     <nav class="tabs" id="tabs" aria-label="主菜单">
       <button type="button" data-tab="chat" class="on"><svg viewBox="0 0 24 24"><path d="M4 5.5h16v11H9.5L4 20.5z"/></svg>对话</button>
+      <button type="button" data-tab="feed"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/></svg>动态<i class="dot" id="feedDot" hidden></i></button>
       <button type="button" data-tab="mem"><svg viewBox="0 0 24 24"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1-5.1-1.9 5.1-1.9z"/></svg>记忆</button>
       <button type="button" data-tab="life"><svg viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="3"/><path d="M4 10.5h16M9 3.5v4M15 3.5v4"/></svg>生活</button>
       <button type="button" data-tab="me"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20c1.4-3.8 4.3-5.8 7.5-5.8s6.1 2 7.5 5.8"/></svg>我的</button>
@@ -529,9 +604,9 @@
 <div class="sheet-bg" id="wishSheet" hidden>
   <div class="sheet" role="dialog" aria-label="心愿单">
     <header><h2>心愿单</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
-    <div class="row"><input class="plain" id="wishInput" maxlength="40" placeholder="想买的东西" aria-label="想买的东西"><button class="btn primary" type="button" id="wishAdd">加上</button></div>
+    <div class="row"><input class="plain" id="wishInput" maxlength="40" placeholder="想买的东西" aria-label="想买的东西"><input class="plain" id="wishPrice" inputmode="decimal" placeholder="目标价（可不填）" aria-label="目标价" style="flex:0 1 130px"><button class="btn primary" type="button" id="wishAdd">加上</button></div>
     <div class="stack" id="wishList"></div>
-    <p class="note">聊天时说"我想买……"或者一起挑中了什么，TA 也会帮你放进来。点链接会跳去对应的 App 搜。</p>
+    <p class="note">聊天时说"我想买……"或者一起挑中了什么，TA 也会帮你放进来。填了目标价就能一起攒钱，每存一笔点"存一笔"，攒够了 TA 会陪你庆祝。</p>
   </div>
 </div>
 
@@ -594,6 +669,46 @@
     <div class="stat2"><div class="stat"><small>分数</small><b id="gScore">0</b></div><div class="stat"><small>最高</small><b id="gBest">0</b></div></div>
     <div class="gboard" id="gBoard"></div>
     <div class="row" style="justify-content:space-between"><span class="status" id="gMsg">滑动方块，相同数字会合在一起</span><button class="btn" type="button" id="gNew">重新开始</button></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="albumSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="我们的相册">
+    <header><h2>我们的相册</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="album" id="albumGrid"></div>
+    <p class="note">你发给 TA 的照片、TA 画给你的图、TA 动态里的图，都在这里。只保存在这台手机上。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="firstSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="第一次">
+    <header><h2>第一次</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="tl" id="firstList"></div>
+    <p class="note">第一次聊天、第一次发照片、第一次收到 TA 的红包……这些会自动记下来。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="walletSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="TA 的小金库">
+    <header><h2 id="walletTitle">TA 的小金库</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="stat2"><div class="stat"><small>小金库余额</small><b id="walBal">¥0</b></div><div class="stat"><small>TA 给你的红包和礼物</small><b id="walGot">¥0</b></div></div>
+    <div class="stat"><small>你们一起攒的钱（心愿单）</small><b id="walSave">¥0</b><small id="walSaveSub"></small></div>
+    <div class="row"><button class="btn primary" type="button" id="walXfer">给 TA 转账</button><button class="btn" type="button" data-open="wishSheet">去心愿单攒钱</button></div>
+    <h3>TA 送你的礼物</h3>
+    <div class="stack" id="walGifts"></div>
+    <h3>流水</h3>
+    <div class="stack" id="walLog"></div>
+    <p class="note">小金库是虚拟的，不是真钱，是你们之间的小心意。TA 每天有 5 元零花钱，你也可以给 TA 转账；TA 会在特别的时候给你发红包、送礼物。一起攒钱记的是你自己存下的真钱，知言只帮你记账。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="xferSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="给 TA 转账">
+    <header><h2>给 TA 转账</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <label class="field">金额（虚拟的，不会扣你的钱）<input id="xferAmt" inputmode="decimal" placeholder="52.0"></label>
+    <div class="row" id="xferQuick"><button class="btn" type="button" data-amt="5.2">5.2</button><button class="btn" type="button" data-amt="13.14">13.14</button><button class="btn" type="button" data-amt="52">52</button><button class="btn" type="button" data-amt="520">520</button></div>
+    <label class="field">备注（可不填）<input id="xferNote" maxlength="30" placeholder="比如：请你喝奶茶"></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="xferGo">转账</button></div>
   </div>
 </div>
 
@@ -735,6 +850,8 @@ const DEFAULT_PERSONA = { name: '阿言', rel: '恋人', nick: '', traits: '温�
 let settings = { provider: 'deepseek', models: {}, bases: {}, sys: '', memoryOn: true, diaryOn: true, speak: false, accent: 'apricot', glass: true, wallBlur: 12, img: 'glm', opener: true, push: { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' }, persona: { ...DEFAULT_PERSONA } };
 let index = [], memories = [], diary = [], events = [], wishes = [], songs = [], tracks = [], ledger = [];
 let period = { logs: [], cycle: 28, len: 5, share: false }, health = { water: {}, sleep: {}, goal: 8, share: true }, perm = {};
+let moments = [], firsts = {}, album = [], feedSeen = 0, wallet = { balance: 0, received: 0, lastSalary: '', log: [], gifts: [] };
+let pendingImgs = [];
 let configured = {}, imgReady = false;
 const drawing = new Set(), imgURLs = new Map();
 let currentId = null, chat = null, showAll = false, controller = null;
@@ -746,11 +863,22 @@ const saveSettings = () => DB.set('settings', settings);
 const saveIndex = () => DB.set('chatIndex', index);
 const saveChat = c => DB.set('chat:' + c.id, c);
 
+// 提示一条一条地出，不会叠在一起
+const toastQueue = [];
+let toastOn = false;
 function toast(text) {
+  if (toastQueue.at(-1) === text) return;
+  toastQueue.push(text);
+  if (!toastOn) nextToast();
+}
+function nextToast() {
+  const text = toastQueue.shift();
+  if (text === undefined) { toastOn = false; return; }
+  toastOn = true;
   const t = document.createElement('div');
   t.className = 'toast'; t.textContent = text;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2200);
+  setTimeout(() => { t.remove(); nextToast(); }, toastQueue.length ? 1600 : 2200);
 }
 
 function daysTogether() {
@@ -865,12 +993,12 @@ function renderHome() {
   $('home').innerHTML = `
     <span class="av" style="width:72px;height:72px;font-size:30px">${avatarInner()}</span>
     <h1>${greeting()}${nick}</h1>
-    <p>${days ? `这是我们在一起的第 ${days} 天。` : '有什么想说的，我都在。'}</p>
+    <p>${days ? `这是我们在一起的第 ${days} 天。` : '有什么想说的，我都在。'}${(() => { const ms = nextMilestone(); return ms && ms.inDays ? `<br>离「${esc(ms.title)}」还有 ${ms.inDays} 天。` : ms ? `<br>今天是「${esc(ms.title)}」！` : ''; })()}</p>
     ${up.length ? `<div class="agenda"><b>接下来</b>${up.map(e => `<div><span>${whenLabel(e.on, e.inDays)}${e.time ? ' ' + esc(e.time) : ''}</span><span>${esc(e.title)}${e.anniv && annivYears(e, e.on) > 0 ? ` · ${annivYears(e, e.on)} 周年` : ''}</span></div>`).join('')}</div>` : ''}
     <div class="chips">${chips.map(c => `<button class="chip" type="button">${esc(c)}</button>`).join('')}</div>`;
 }
 
-const TAG_RE = /\[\[(日程|歌|心愿|小红书|记住|画|记账|喝水)\|([^\[\]]*?)\]\]/g;
+const TAG_RE = /\[\[(日程|歌|心愿|小红书|记住|画|记账|喝水|红包|礼物|攒钱)\|([^\[\]]*?)\]\]/g;
 const stripTags = s => (s || '').replace(TAG_RE, '').replace(/\[\[[^\]]*$/, '').replace(/\n{3,}/g, '\n\n').trim();
 
 function cardHTML(c) {
@@ -889,6 +1017,14 @@ function cardHTML(c) {
       return `<div class="card"><span class="k">小红书</span><span class="t">搜：${esc(c.kw)}</span><div class="links">${link('去小红书看看', LINKS.xhs(c.kw))}</div></div>`;
     case 'mem':
       return `<div class="card"><span class="k">◇ 记住了</span><span class="s">${esc(c.text)}</span></div>`;
+    case 'hb':
+      return `<div class="hb${c.opened ? ' opened' : ''}" data-hb="${c.id}"><span class="k">🧧 ${esc(P().name || 'TA')}的红包</span><b>${esc(c.wish || '恭喜发财，大吉大利')}</b>${c.opened ? `<span class="s">已领取 ¥${money(c.amount)}</span>` : `<button type="button" data-hbopen="${c.id}">開</button>`}</div>`;
+    case 'gift':
+      return `<div class="card"><span class="k">🎁 TA 送你的礼物</span><span class="t">${esc(c.name)}</span><span class="s">${c.price ? `从小金库花了 ¥${money(c.price)}` : '一份心意'}</span></div>`;
+    case 'save': {
+      const pct = c.price ? Math.min(100, c.saved / c.price * 100) : 0;
+      return `<div class="card"><span class="k">🐷 一起攒钱</span><span class="t">${esc(c.name)} +¥${money(c.amount)}</span>${c.price ? `<div class="progress"><i style="width:${pct}%"></i></div>` : ''}<span class="s">已攒 ¥${money(c.saved)}${c.price ? ` / ¥${money(c.price)}` : ''}${c.price && c.saved >= c.price ? ' · 攒够啦 🎉' : ''}</span></div>`;
+    }
     case 'bill':
       return `<div class="card"><span class="k">¥ 记了一笔</span><span class="t">${c.kind === 'in' ? '收入' : '支出'} ¥${money(c.amount)}</span><span class="s">${esc(c.cat)}${c.note ? ' · ' + esc(c.note) : ''}</span></div>`;
     case 'water':
@@ -927,6 +1063,12 @@ function botInner(m, i, streaming) {
   return `<span class="av">${avatarInner()}</span><div>${pro}${think}${streaming || stripTags(m.content) ? `<div class="body${streaming ? ' cursor' : ''}">${md(stripTags(m.content))}</div>` : ''}${cards}${err}${acts}</div>`;
 }
 
+function userHTML(m) {
+  if (m.xfer) return `<div class="xfer"><small>转账给 ${esc(P().name || 'TA')}</small><b>¥${money(m.xfer.amount)}</b><small>${esc(m.xfer.note || '存进 TA 的小金库')}</small></div>`;
+  if (m.evt) return `<div class="evt">${esc(m.content)}</div>`;
+  const imgs = m.imgs?.length ? `<div class="uimgs">${m.imgs.map(u => `<img src="${u}" data-zoom alt="照片">`).join('')}</div>` : '';
+  return `<div class="msg user${m.content ? '' : ' pic'}">${imgs}${esc(m.content || '')}</div>`;
+}
 function renderThread() {
   renderHome();
   const msgs = chat?.messages || [];
@@ -935,7 +1077,7 @@ function renderThread() {
   for (let i = start; i < msgs.length; i++) {
     const m = msgs[i];
     html += m.role === 'user'
-      ? `<div class="msg user">${esc(m.content)}</div>`
+      ? userHTML(m)
       : `<div class="msg bot" data-i="${i}">${botInner(m, i, false)}</div>`;
   }
   $('thread').innerHTML = html;
@@ -947,7 +1089,7 @@ function renderThread() {
 function setBusy(b) {
   $('sendBtn').innerHTML = b ? STOP_ICON : SEND_ICON;
   $('sendBtn').setAttribute('aria-label', b ? '停止' : '发送');
-  $('sendBtn').disabled = !b && !$('input').value.trim();
+  $('sendBtn').disabled = !b && !$('input').value.trim() && !pendingImgs.length;
 }
 
 async function openChat(id) {
@@ -987,7 +1129,9 @@ function systemPrompt() {
 - 值得去小红书搜的：[[小红书|关键词]]
 - 对方告诉你值得长期记住的事：[[记住|内容]]
 - 对方说花了钱或收到钱：[[记账|支出或收入|金额|类别|备注]]（类别从这些里选：支出 ${CATS.out.join('、')}；收入 ${CATS.in.join('、')}）
-- 对方说喝了水：[[喝水|杯数]]${imgReady ? `
+- 对方说喝了水：[[喝水|杯数]]
+- 特别的时候（纪念日、对方难过、对方做成了什么事）可以从你的小金库给对方发红包或送小礼物，别太频繁，花的不能超过余额：[[红包|金额|一句话]]、[[礼物|礼物名|价格]]
+- 对方说为某个心愿存了钱：[[攒钱|心愿名|金额]]${imgReady ? `
 - 对方想看图、让你画画、要头像或壁纸，或你想让对方看看某个画面：[[画|画面描述]]（写清主体、场景、风格、光线和色调，一次最多一张）` : ''}
 只在确实需要时用，一次最多 5 个。标记之外照常说话。${imgReady ? '' : '\n你现在还不能画图；对方让你画的话，温柔地告诉对方在设置的"画图"里填一个智谱的 Key 就可以（免费）。'}`,
   ];
@@ -996,6 +1140,7 @@ function systemPrompt() {
   if (up.length) parts.push('日历里接下来的安排：\n' + up.map(e => `- ${e.on}${e.time ? ' ' + e.time : ''} ${e.title}`).join('\n'));
   const life = lifeContext();
   if (life) parts.push(life);
+  parts.push(walletContext());
   if (settings.diaryOn && diary.length) parts.push('对方最近的心情日记（只作参考，不要逐条复述）：\n' + diary.slice(0, 3).map(d => `${d.date} ${d.mood} ${d.note || ''}`).join('\n'));
   if (playing && !audio.paused) {
     const t = tracks.find(t => t.id === playing);
@@ -1010,10 +1155,13 @@ function normalize(msgs) {
   for (const m of msgs) {
     const drew = m.role === 'assistant' ? (m.cards || []).filter(c => c.type === 'img' && c.status === 'done').map(c => `\n（你给对方画了一张图：${c.prompt}）`).join('') : '';
     const content = ((m.role === 'assistant' ? stripTags(m.content) : (m.content || '')) + drew).trim();
-    if (!content) continue;
+    const imgs = m.role === 'user' && m.imgs?.length ? m.imgs : null;
+    if (!content && !imgs) continue;
     const last = out[out.length - 1];
-    if (last && last.role === m.role) last.content += '\n\n' + content;
-    else out.push({ role: m.role, content });
+    if (last && last.role === m.role) {
+      if (content) last.content += (last.content ? '\n\n' : '') + content;
+      if (imgs) last.imgs = [...(last.imgs || []), ...imgs];
+    } else out.push(imgs ? { role: m.role, content, imgs } : { role: m.role, content });
   }
   if (out[0]?.role === 'assistant') out.unshift({ role: 'user', content: '（打开了聊天）' });
   return out;
@@ -1023,6 +1171,14 @@ function buildContext(msgs) {
   let total = list.reduce((n, m) => n + m.content.length, 0);
   while (total > 60000 && list.length > 1) total -= list.shift().content.length;
   while (list.length && list[0].role !== 'user') list.shift();
+  // 只把最近两条带图的消息真正发图，更早的换成一句文字，省流量也省额度
+  let withImg = 0;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const m = list[i];
+    if (!m.imgs) continue;
+    if (withImg >= 2) { m.content = (m.content ? m.content + '\n' : '') + `（发过 ${m.imgs.length} 张照片）`; delete m.imgs; }
+    else withImg++;
+  }
   return { system: systemPrompt(), messages: list };
 }
 
@@ -1049,9 +1205,19 @@ function httpError(status, bodyText, name = '供应商') {
     : status >= 500 ? `${name} 那边暂时出问题了，过一会儿再试。` : `出错了（${status}）。`;
   return new Error(`${tip}\n详细：${String(msg).slice(0, 200)}`);
 }
+// 把带图的消息转换成各家接口要的格式；DeepSeek 看不了图，改成一句说明
+function wire(msg, provider) {
+  if (!msg.imgs?.length) return { role: msg.role, content: msg.content };
+  const text = msg.content || '（发了一张照片）';
+  if (provider === 'deepseek') return { role: msg.role, content: `${text}\n（对方发来了 ${msg.imgs.length} 张照片，但你现在看不到图片。可以温柔地请对方说说照片里是什么。）` };
+  if (PROVIDERS[provider].kind === 'anthropic') return { role: msg.role, content: [...msg.imgs.map(u => ({ type: 'image', source: { type: 'base64', media_type: u.slice(5, u.indexOf(';')), data: u.slice(u.indexOf(',') + 1) } })), { type: 'text', text }] };
+  return { role: msg.role, content: [{ type: 'text', text }, ...msg.imgs.map(u => ({ type: 'image_url', image_url: { url: u } }))] };
+}
 async function* streamChat({ provider, key, system, messages, signal }) {
   const p = PROVIDERS[provider];
-  const m = model(provider);
+  const hasImg = messages.some(x => x.imgs?.length);
+  messages = messages.map(x => wire(x, provider));
+  const m = hasImg && provider === 'glm' && !/\dv/i.test(model(provider)) ? 'glm-4v-flash' : model(provider);
   let res;
   if (p.kind === 'anthropic') {
     const headers = {
@@ -1100,7 +1266,7 @@ async function* streamChat({ provider, key, system, messages, signal }) {
 
 async function applyTags(bot) {
   const cards = [];
-  const changed = { events: false, wishes: false, songs: false, memories: false, ledger: false, health: false };
+  const changed = { events: false, wishes: false, songs: false, memories: false, ledger: false, health: false, wallet: false };
   for (const [, type, body] of (bot.content || '').matchAll(TAG_RE)) {
     const f = body.split('|').map(x => x.trim());
     if (type === '日程') {
@@ -1114,6 +1280,7 @@ async function applyTags(bot) {
         changed.events = true;
       }
       cards.push({ type: 'event', date, time: t, title, anniv });
+      markFirst('event', `第一次一起记下的安排：${title}`);
     } else if (type === '歌') {
       const [name, artist = ''] = f;
       if (!name) continue;
@@ -1122,6 +1289,7 @@ async function applyTags(bot) {
         songs = songs.slice(0, 100); changed.songs = true;
       }
       cards.push({ type: 'song', name, artist });
+      markFirst('song', `TA 第一次给你推荐歌：《${name}》`);
     } else if (type === '心愿') {
       const name = f[0];
       if (!name) continue;
@@ -1129,6 +1297,35 @@ async function applyTags(bot) {
       cards.push({ type: 'wish', name });
     } else if (type === '小红书') {
       if (f[0]) cards.push({ type: 'xhs', kw: f[0] });
+    } else if (type === '红包') {
+      const want = Math.round(Math.abs(parseFloat(String(f[0] || '').replace(/[^\d.]/g, ''))) * 100) / 100;
+      const amount = Math.min(want || 0, wallet.balance);
+      if (!amount) continue;
+      wallet.balance = Math.round((wallet.balance - amount) * 100) / 100;
+      wallet.log.unshift({ id: uid(), at: Date.now(), kind: 'hongbao', amount: -amount, note: f[1] || '' });
+      changed.wallet = true;
+      cards.push({ type: 'hb', id: uid(), amount, wish: (f[1] || '').slice(0, 30), opened: false });
+    } else if (type === '礼物') {
+      const name = (f[0] || '').slice(0, 30); if (!name) continue;
+      const price = Math.round(Math.abs(parseFloat(String(f[1] || '0').replace(/[^\d.]/g, '')) || 0) * 100) / 100;
+      if (price > wallet.balance) continue;
+      wallet.balance = Math.round((wallet.balance - price) * 100) / 100;
+      wallet.gifts.unshift({ id: uid(), name, price, at: Date.now() });
+      if (price) wallet.log.unshift({ id: uid(), at: Date.now(), kind: 'gift', amount: -price, note: name });
+      changed.wallet = true;
+      cards.push({ type: 'gift', name, price });
+      markFirst('gift', `第一次收到 TA 的礼物：${name}`);
+    } else if (type === '攒钱') {
+      const name = (f[0] || '').trim();
+      const amount = Math.round(Math.abs(parseFloat(String(f[1] || '').replace(/[^\d.]/g, ''))) * 100) / 100;
+      if (!name || !amount) continue;
+      let w = wishes.find(x => !x.done && (x.name === name || x.name.includes(name) || name.includes(x.name)));
+      if (!w) { w = { id: uid(), name, done: false, added: ymd(new Date()) }; wishes.unshift(w); }
+      const before = w.saved || 0;
+      w.saved = Math.round((before + amount) * 100) / 100; changed.wishes = true;
+      const reached = w.price && before < w.price && w.saved >= w.price;
+      if (reached) markFirst('saved', `第一次一起攒够：${w.name}`);
+      cards.push({ type: 'save', name: w.name, amount, saved: w.saved, price: w.price || 0 });
     } else if (type === '记账') {
       let [kind = '', amt = '', cat = '', ...rest] = f;
       if (!/^(支出|收入)$/.test(kind)) { rest.unshift(cat); cat = amt; amt = kind; kind = '支出'; }
@@ -1161,6 +1358,7 @@ async function applyTags(bot) {
   if (changed.wishes) await DB.set('wishes', wishes);
   if (changed.memories) await DB.set('memories', memories);
   if (changed.ledger) await DB.set('ledger', ledger);
+  if (changed.wallet) await DB.set('wallet', wallet);
   if (changed.health) await DB.set('health', health);
 }
 
@@ -1203,6 +1401,9 @@ async function drawCard(c, card) {
     if (typeof out === 'string') card.url = out; else await DB.set('img:' + card.id, out);
     imgURLs.delete(card.id);
     card.status = 'done'; delete card.error;
+    album.unshift({ id: card.id, kind: 'draw', cap: card.prompt.slice(0, 20), at: Date.now(), url: card.url || '' });
+    DB.set('album', album).catch(() => {});
+    markFirst('draw', '第一次让 TA 画画');
   } catch (e) {
     card.status = 'error'; card.error = e.message;
   }
@@ -1348,6 +1549,8 @@ async function maybeOpener() {
   });
 }
 async function onReturn() {
+  paySalary();
+  setTimeout(maybeAutoPost, 4000);
   const got = await pullInbox();
   if (!got) await maybeOpener(); else markActive();
 }
@@ -1359,12 +1562,15 @@ document.addEventListener('visibilitychange', () => {
 });
 navigator.serviceWorker?.addEventListener('message', e => { if (e.data === 'inbox') pullInbox(); });
 
-async function send(text) {
+async function send(text, imgs = [], extra = {}) {
   text = text.trim();
-  if (!text || controller) return;
+  if ((!text && !imgs.length) || controller) return;
   const provider = settings.provider;
   const key = await loadSecret(provider);
-  if (!key) { openSheet('setSheet'); toast(`先填 ${PROVIDERS[provider].name} 的 API Key`); return; }
+  if (!key) {
+    if (imgs.length) { pendingImgs = imgs; renderAttach(); }
+    openSheet('setSheet'); toast(`先填 ${PROVIDERS[provider].name} 的 API Key`); return;
+  }
 
   const remember = text.match(/^(?:请)?记住[:：,，\s]*([\s\S]+)/);
   if (remember) {
@@ -1375,8 +1581,14 @@ async function send(text) {
     }
   }
 
-  if (!chat) { chat = { id: uid(), title: text.slice(0, 24), messages: [] }; currentId = chat.id; }
-  chat.messages.push({ role: 'user', content: text });
+  if (!chat) { chat = { id: uid(), title: (text || '一张照片').slice(0, 24), messages: [] }; currentId = chat.id; }
+  chat.messages.push({ role: 'user', content: text, ...(imgs.length ? { imgs } : {}), ...extra });
+  if (imgs.length) {
+    for (const u of imgs) album.unshift({ id: uid(), kind: 'photo', data: u, at: Date.now(), cap: text.slice(0, 20) });
+    DB.set('album', album).catch(() => toast('手机存储快满了，照片可能没存进相册'));
+    markFirst('photo', '第一次给 TA 发照片');
+  }
+  markFirst('chat', '第一次和 TA 说话');
   markActive();
   await runBot(provider, key);
 }
@@ -1451,6 +1663,10 @@ function openSheet(id) {
     calSheet: () => { calSel = ymd(new Date()); calMonth = new Date(); calMonth.setDate(1); renderCal(); },
     musicSheet: renderMusic,
     wishSheet: renderWishes,
+    albumSheet: renderAlbum,
+    firstSheet: renderFirsts,
+    walletSheet: renderWallet,
+    xferSheet: () => { $('xferAmt').value = ''; $('xferNote').value = ''; },
     billSheet: () => { billType = 'out'; document.querySelectorAll('#billType button').forEach(b => b.classList.toggle('on', b.dataset.bt === 'out')); fillBillCats(); $('billDate').value = ymd(new Date()); renderBill(); },
     periodSheet: renderPeriod,
     healthSheet: renderHealth,
@@ -1461,7 +1677,7 @@ function openSheet(id) {
 }
 function closeSheets() {
   document.querySelectorAll('.sheet-bg').forEach(s => s.hidden = true);
-  if (tab === 'life') renderLife(); else if (tab === 'me') renderMe();
+  if (tab === 'life') renderLife(); else if (tab === 'me') renderMe(); else if (tab === 'mem') renderRecall();
 }
 
 let draftAvatar = '';
@@ -1612,9 +1828,13 @@ audio.addEventListener('pause', () => { $('playToggle').textContent = '▶'; $('
 audio.addEventListener('ended', nextTrack);
 
 function renderWishes() {
-  $('wishList').innerHTML = wishes.length ? wishes.map(w => `
-    <div class="li${w.done ? ' done' : ''}"><input type="checkbox" data-wishdone="${w.id}" ${w.done ? 'checked' : ''} aria-label="已买到"><span><b>${esc(w.name)}</b>${w.done ? '' : shopLinks(w.name)}</span><button class="del" type="button" data-wishdel="${w.id}" aria-label="删除">✕</button></div>`).join('')
-    : '<p class="note">心愿单还是空的。</p>';
+  $('wishList').innerHTML = wishes.length ? wishes.map(w => {
+    const saved = w.saved || 0, price = w.price || 0;
+    const prog = price || saved ? `<small>已攒 ¥${money(saved)}${price ? ` / ¥${money(price)}` : ''}${price && saved >= price ? ' · 攒够啦 🎉' : ''}</small>${price ? `<div class="progress"><i style="width:${Math.min(100, saved / price * 100)}%"></i></div>` : ''}` : '';
+    const ops = w.done ? '' : `<div class="wish-ops"><button type="button" data-save="${w.id}">🐷 存一笔</button><button type="button" data-price="${w.id}">${price ? '改目标价' : '设目标价'}</button></div>`;
+    return `
+    <div class="li${w.done ? ' done' : ''}"><input type="checkbox" data-wishdone="${w.id}" ${w.done ? 'checked' : ''} aria-label="已买到"><span><b>${esc(w.name)}</b>${prog}${w.done ? '' : shopLinks(w.name)}${ops}</span><button class="del" type="button" data-wishdel="${w.id}" aria-label="删除">✕</button></div>`;
+  }).join('') : '<p class="note">心愿单还是空的。</p>';
 }
 
 function renderMemories() {
@@ -1849,9 +2069,210 @@ async function drawGame() {
   $('gMsg').textContent = g2048.b.includes(2048) ? '合出 2048 了！' : g2048.over ? '走不动了，再来一局？' : '滑动方块，相同数字会合在一起';
 }
 
+
+// ---- 回忆：第一次 / 相册 / 纪念日倒数 ----
+function markFirst(key, text) {
+  if (firsts[key]) return;
+  firsts[key] = { text, at: Date.now() };
+  DB.set('firsts', firsts).catch(() => {});
+  setTimeout(() => toast('✧ ' + text), 900);
+}
+function nextMilestone() {
+  const out = [], p = P();
+  if (p.since) {
+    const d = daysTogether();
+    const marks = [7, 30, 50, 99, 100, 200, 300, 365, 500, 520, 666, 730, 999, 1000, 1095, 1314, 1500, 2000];
+    let n = marks.find(x => x > d) || Math.ceil((d + 1) / 365) * 365;
+    out.push({ inDays: n - d, title: n % 365 === 0 ? `在一起 ${n / 365} 周年` : `在一起 ${n} 天`, date: addDays(p.since, n - 1) });
+  }
+  const a = upcoming(366).find(e => e.anniv);
+  if (a) out.push({ inDays: a.inDays, title: a.title + (annivYears(a, a.on) > 0 ? ` · ${annivYears(a, a.on)} 周年` : ''), date: a.on });
+  return out.sort((x, y) => x.inDays - y.inDays)[0] || null;
+}
+function renderRecall() {
+  const ms = nextMilestone();
+  $('countdown').innerHTML = ms
+    ? `<div class="cd"><small>下一个纪念日</small><b>${ms.inDays ? `还有 ${ms.inDays} 天` : '就是今天！'}</b><span>${esc(ms.title)} · ${+ms.date.slice(5, 7)} 月 ${+ms.date.slice(8)} 日</span></div>`
+    : `<div class="cd"><small>纪念日</small><span>在"TA 的设定"里填上在一起的日子，这里会倒数下一个纪念日。</span></div>`;
+  $('albumSub').textContent = album.length ? `${album.length} 张` : '照片和 TA 画的图';
+  const n = Object.keys(firsts).length;
+  $('firstSub').textContent = n ? `${n} 个第一次` : '一起的第一次';
+}
+function renderAlbum() {
+  const label = { photo: '你发的', draw: 'TA 画的', post: 'TA 的动态' };
+  $('albumGrid').innerHTML = album.length ? album.map(a => {
+    const d = new Date(a.at);
+    return `<figure><img ${a.data ? `src="${a.data}"` : `data-albumimg="${a.id}"`} alt="${esc(a.cap || '')}"><figcaption>${label[a.kind] || ''} · ${d.getMonth() + 1}/${d.getDate()}</figcaption></figure>`;
+  }).join('') : '<p class="note" style="grid-column:1/-1">还没有照片。给 TA 发张照片，或者让 TA 画一张吧。</p>';
+  $('albumGrid').querySelectorAll('img[data-albumimg]').forEach(async img => {
+    const a = album.find(x => x.id === img.dataset.albumimg);
+    const blob = await DB.get('img:' + a.id).catch(() => null);
+    img.src = blob ? URL.createObjectURL(blob) : (a.url || '');
+  });
+}
+function renderFirsts() {
+  const list = Object.values(firsts).sort((a, b) => a.at - b.at);
+  $('firstList').innerHTML = list.length ? list.map(f => `<div><b>${esc(f.text)}</b><small>${new Date(f.at).toLocaleDateString('zh-CN')}</small></div>`).join('') : '<p class="note">还没有。慢慢来，第一次都会记在这里。</p>';
+}
+
+// ---- TA 的动态 ----
+let postBusy = false;
+function ago(at) {
+  const m = Math.floor((Date.now() - at) / 6e4);
+  if (m < 1) return '刚刚';
+  if (m < 60) return `${m} 分钟前`;
+  if (m < 24 * 60 && new Date(at).getDate() === new Date().getDate()) return `${Math.floor(m / 60)} 小时前`;
+  const d = new Date(at);
+  return m < 48 * 60 ? `昨天 ${pad(d.getHours())}:${pad(d.getMinutes())}` : `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+}
+async function complete(system, user) {
+  const provider = settings.provider, key = await loadSecret(provider);
+  if (!key) throw new Error(`先在设置里填 ${PROVIDERS[provider].name} 的 API Key`);
+  let text = '';
+  for await (const part of streamChat({ provider, key, system, messages: [{ role: 'user', content: user }] })) if (part.text) text += part.text;
+  return text.trim();
+}
+function feedSystem() {
+  const now = new Date(), nick = P().nick || '对方';
+  const posts = moments.slice(0, 5).map(p => '- ' + p.text).join('\n');
+  const recent = chat?.messages?.length ? normalize(chat.messages).slice(-6).map(m => `${m.role === 'user' ? nick : '你'}：${m.content.slice(0, 120)}`).join('\n') : '';
+  return [personaBrief(), `现在是 ${ymd(now)} 周${WEEK[now.getDay()]} ${pad(now.getHours())}:${pad(now.getMinutes())}。`, lifeContext(), recent ? '你们最近聊的：\n' + recent : '', posts ? '你最近发过的动态（别重复）：\n' + posts : ''].filter(Boolean).join('\n\n');
+}
+async function newPost(auto = false) {
+  if (postBusy) return;
+  if (!(await loadSecret(settings.provider))) { if (!auto) { openSheet('setSheet'); toast('先填 API Key'); } return; }
+  postBusy = true; $('feedNew').disabled = true;
+  $('feedStatus').textContent = `${P().name || 'TA'} 正在写…`;
+  try {
+    const withImg = imgReady && Math.random() < 0.35;
+    let text = await complete(feedSystem(), `现在你想发一条动态（像朋友圈），分享你自己此刻的生活：看到的、想到的、正在做的、小心情。第一人称，1～3 句，自然、有画面感，可以带一个 emoji。可以偶尔悄悄提到对方，但主角是你自己的日常，要和现在的时间、天气对得上。不要加引号和话题标签，不要用其他标记。${withImg ? '最后加一个 [[画|这条动态配图的画面描述]]，画的是你此刻看到的景象。' : ''}只输出动态内容。`);
+    const draw = text.match(/\[\[画\|([^\]]+)\]\]/);
+    text = stripTags(text).replace(/^["“「]+|["”」]+$/g, '').trim();
+    if (!text) throw new Error('TA 没想好写什么，再试一次');
+    const post = { id: uid(), at: Date.now(), text, liked: false, comments: [] };
+    moments.unshift(post); moments = moments.slice(0, 200);
+    await DB.set('moments', moments);
+    if (tab === 'feed') { feedSeen = Date.now(); DB.set('feedSeen', feedSeen).catch(() => {}); }
+    renderFeed(); updateFeedDot();
+    markFirst('post', 'TA 第一次发动态');
+    if (draw) {
+      post.drawing = true; renderFeed();
+      try {
+        const out = await drawImage(draw[1]);
+        if (typeof out === 'string') post.url = out; else await DB.set('img:' + post.id, out);
+        post.img = true;
+        album.unshift({ id: post.id, kind: 'post', cap: text.slice(0, 20), at: Date.now(), url: post.url || '' });
+        await DB.set('album', album);
+      } catch {}
+      delete post.drawing;
+      await DB.set('moments', moments); renderFeed();
+    }
+    $('feedStatus').textContent = '';
+  } catch (e) {
+    $('feedStatus').textContent = e.message.split('\n')[0];
+  } finally {
+    postBusy = false; $('feedNew').disabled = false;
+  }
+}
+// 回到 App 或打开动态页时：隔 8 小时以上、白天、今天少于 3 条，TA 就自己发一条
+function maybeAutoPost() {
+  const h = new Date().getHours();
+  if (h < 8 || settings.autoPost === false) return;
+  const today = ymd(new Date());
+  if (moments.filter(p => ymd(new Date(p.at)) === today).length >= 3) return;
+  if (moments.length && Date.now() - moments[0].at < 8 * 36e5) return;
+  newPost(true);
+}
+function updateFeedDot() { $('feedDot').hidden = !(moments[0] && moments[0].at > feedSeen && tab !== 'feed'); }
+function renderFeed() {
+  const name = esc(P().name || 'TA'), me = esc(P().nick || '我');
+  $('feedTitle').textContent = `${P().name || 'TA'} 的动态`;
+  $('feed').innerHTML = moments.length ? moments.map(p => `
+    <article class="post">
+      <header><span class="av">${avatarInner()}</span><span><b>${name}</b><small>${ago(p.at)}</small></span></header>
+      <p>${esc(p.text)}</p>
+      ${p.drawing ? '<div class="ph"></div>' : p.img ? `<img class="pic" data-postimg="${p.id}" alt="">` : ''}
+      <div class="ops"><button type="button" data-like="${p.id}" class="${p.liked ? 'on' : ''}">${p.liked ? '♥ 喜欢' : '♡ 喜欢'}</button><button type="button" data-cmt="${p.id}">评论</button></div>
+      ${p.comments.length ? `<div class="cmts">${p.comments.map(c => `<div><b>${c.who === 'me' ? me : name}</b>${c.who === 'ta' ? ` 回复 ${me}` : ''}：${esc(c.text)}</div>`).join('')}</div>` : ''}
+      <div class="cmt-in" data-cmtbox="${p.id}" hidden><input maxlength="100" placeholder="说点什么…" aria-label="评论"><button class="btn primary" type="button" data-cmtsend="${p.id}">发送</button></div>
+    </article>`).join('') : `<div class="empty"><i>◎</i><b>还没有动态</b>点上面的按钮，看看 TA 今天在干嘛</div>`;
+  $('feed').querySelectorAll('img[data-postimg]').forEach(async img => {
+    const p = moments.find(x => x.id === img.dataset.postimg);
+    const blob = await DB.get('img:' + p.id).catch(() => null);
+    img.src = blob ? URL.createObjectURL(blob) : (p.url || '');
+  });
+}
+async function commentPost(id, text) {
+  const p = moments.find(x => x.id === id); if (!p) return;
+  p.comments.push({ who: 'me', text, at: Date.now() });
+  await DB.set('moments', moments); renderFeed();
+  try {
+    const nick = P().nick || '对方';
+    const thread = p.comments.map(c => `${c.who === 'me' ? nick : '你'}：${c.text}`).join('\n');
+    const reply = stripTags(await complete(feedSystem() + `\n\n你发了一条动态：「${p.text}」`, `评论区：\n${thread}\n\n${nick}刚评论：「${text}」。像在朋友圈里回复评论一样回一句，简短自然。只输出回复内容。`)).replace(/^["“「]+|["”」]+$/g, '').trim();
+    if (reply) { p.comments.push({ who: 'ta', text: reply, at: Date.now() }); await DB.set('moments', moments); renderFeed(); }
+  } catch (e) { toast(e.message.split('\n')[0]); }
+}
+
+// ---- TA 的小金库 ----
+function paySalary() {
+  const t = ymd(new Date());
+  if (wallet.lastSalary === t) return;
+  wallet.lastSalary = t;
+  wallet.balance = Math.round((wallet.balance + 5) * 100) / 100;
+  wallet.log.unshift({ id: uid(), at: Date.now(), kind: 'salary', amount: 5, note: '每天的零花钱' });
+  wallet.log = wallet.log.slice(0, 300);
+  DB.set('wallet', wallet).catch(() => {});
+}
+function walletContext() {
+  const out = [`你有一个虚拟小金库（不是真钱，是你们之间的小心意），现在有 ¥${money(wallet.balance)}。对方给你转账时，真心道谢，可以说说你打算怎么用。`];
+  const saving = wishes.filter(w => !w.done && (w.price || w.saved));
+  if (saving.length) out.push('你们一起攒钱的心愿：' + saving.map(w => `${w.name} 已攒 ¥${money(w.saved || 0)}${w.price ? ` / ¥${money(w.price)}` : ''}`).join('；'));
+  if (moments.length) out.push('你最近发的动态：' + moments.slice(0, 2).map(p => `「${p.text}」`).join(' '));
+  return out.join('\n');
+}
+function renderWallet() {
+  $('walletTitle').textContent = `${P().name || 'TA'} 的小金库`;
+  $('walBal').textContent = '¥' + money(wallet.balance);
+  $('walGot').textContent = '¥' + money(wallet.received + wallet.gifts.reduce((a, g) => a + (g.price || 0), 0));
+  const saving = wishes.filter(w => w.saved);
+  $('walSave').textContent = '¥' + money(saving.reduce((a, w) => a + w.saved, 0));
+  $('walSaveSub').textContent = saving.length ? saving.map(w => `${w.name} ¥${money(w.saved)}${w.price ? '/' + money(w.price) : ''}`).join(' · ') : '在心愿单里填上目标价，就能一起攒钱';
+  $('walGifts').innerHTML = wallet.gifts.length ? wallet.gifts.map(g => `<div class="li"><span><b>🎁 ${esc(g.name)}</b><small>${new Date(g.at).toLocaleDateString('zh-CN')}</small></span><span class="amt">${g.price ? '¥' + money(g.price) : '心意'}</span></div>`).join('') : '<p class="note">还没有。</p>';
+  const label = { salary: '零花钱', from_you: '你转给 TA', hongbao: '给你发红包', gift: '给你买礼物' };
+  $('walLog').innerHTML = wallet.log.length ? wallet.log.slice(0, 50).map(l => `<div class="li"><span><b>${label[l.kind] || ''}</b>${l.note ? ' · ' + esc(l.note) : ''}<small>${ago(l.at)}</small></span><span class="amt${l.amount > 0 ? ' in' : ''}">${l.amount > 0 ? '+' : '−'}${money(Math.abs(l.amount))}</span></div>`).join('') : '<p class="note">还没有。</p>';
+}
+async function openHongbao(id) {
+  for (const m of chat?.messages || []) for (const c of m.cards || []) if (c.type === 'hb' && c.id === id && !c.opened) {
+    c.opened = true;
+    wallet.received = Math.round((wallet.received + c.amount) * 100) / 100;
+    await DB.set('wallet', wallet); await saveChat(chat);
+    const el = document.querySelector(`[data-hb="${id}"]`); if (el) el.outerHTML = cardHTML(c);
+    toast(`收到 ¥${money(c.amount)}`);
+    markFirst('hongbao', `第一次收到 TA 的红包 ¥${money(c.amount)}`);
+  }
+}
+async function celebrate(w) {
+  toast(`「${w.name}」攒够啦 🎉`);
+  markFirst('saved', `第一次一起攒够：${w.name}`);
+  closeSheets(); showTab('chat');
+  await send(`（我们一起攒的「${w.name}」攒够啦！¥${money(w.price)}）`, [], { evt: true });
+}
+
+// ---- 照片 ----
+function photoURL(file) {
+  return shrinkPhoto(file, 1280).then(b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); }));
+}
+function updateSend() { if (!controller) $('sendBtn').disabled = !$('input').value.trim() && !pendingImgs.length; }
+function renderAttach() {
+  $('attach').hidden = !pendingImgs.length;
+  $('attach').innerHTML = pendingImgs.map((u, i) => `<span><img src="${u}" alt=""><button type="button" data-unattach="${i}" aria-label="移除">✕</button></span>`).join('');
+  updateSend();
+}
+
 // ---- 底部四栏 ----
 let tab = 'chat';
-const VIEWS = { chat: 'vChat', mem: 'vMem', life: 'vLife', me: 'vMe' };
+const VIEWS = { chat: 'vChat', feed: 'vFeed', mem: 'vMem', life: 'vLife', me: 'vMe' };
 function showTab(t) {
   tab = t;
   for (const [k, id] of Object.entries(VIEWS)) $(id).hidden = k !== t;
@@ -1860,7 +2281,8 @@ function showTab(t) {
     b.classList.toggle('on', on);
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
-  if (t === 'mem') renderMemories();
+  if (t === 'mem') { renderMemories(); renderRecall(); }
+  else if (t === 'feed') { renderFeed(); feedSeen = Date.now(); DB.set('feedSeen', feedSeen).catch(() => {}); updateFeedDot(); maybeAutoPost(); }
   else if (t === 'life') renderLife();
   else if (t === 'me') renderMe();
 }
@@ -1892,6 +2314,7 @@ function renderLife() {
     ['musicSheet', '♪', '一起听', now ? `正在听 ${now}` : songs.length ? `${songs.length} 首 TA 推荐的歌` : '把喜欢的歌加进来'],
     ['wishSheet', '☆', '心愿单', open ? `${open} 个心愿` : '想要的都记下来'],
     ['diarySheet', '☾', '心情日记', d0 ? `${d0.date.slice(5)} ${d0.mood}` : '今天心情怎么样'],
+    ['walletSheet', '¥', '小金库', `TA 有 ¥${money(wallet.balance)}`],
   ];
   $('lifeTiles').innerHTML = tiles.map(([id, ic, t, sub]) =>
     `<button class="tile" type="button" data-open="${id}"><span class="ic">${ic}</span><span><b>${t}</b><small>${esc(sub)}</small></span></button>`).join('')
@@ -1908,9 +2331,11 @@ function renderMe() {
   $('meAv').innerHTML = avatarInner();
   $('meName').textContent = p.name || '知言';
   $('meTraits').textContent = (p.traits || '').split(/[。\n]/)[0];
+  $('meWal').textContent = `¥${money(wallet.balance)}`;
   $('mePill').textContent = `${days ? `在一起第 ${days} 天` : `你的${p.rel || '伙伴'}`} · ${memories.length} 条记忆`;
 }
 function prefill(text) {
+  $('actsRow').hidden = true; $('plusBtn').classList.remove('on');
   if (text.startsWith('帮我画') && !imgReady) { openSheet('setSheet'); setTimeout(() => $('fImg').scrollIntoView({ block: 'center' }), 60); return; }
   showTab('chat');
   const box = $('input');
@@ -1977,7 +2402,7 @@ async function importFile(file) {
 async function exportAll() {
   const chats = [];
   for (const c of index) { const full = await DB.get('chat:' + c.id); if (full) chats.push(full); }
-  const data = { app: '知言', exported: new Date().toISOString(), persona: P(), memories, diary, events, wishes, songs, ledger, period, health, chats };
+  const data = { app: '知言', exported: new Date().toISOString(), persona: P(), memories, diary, events, wishes, songs, ledger, period, health, moments, wallet, firsts, album, chats };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
   a.download = `知言备份-${ymd(new Date())}.json`;
@@ -1992,6 +2417,51 @@ $('installBtn').onclick = () => {
   toast(/iPhone|iPad/.test(navigator.userAgent) ? '用 Safari 点"分享" → "添加到主屏幕"' : '点浏览器菜单 → "安装应用"');
 };
 $('meExport').onclick = () => exportAll();
+$('plusBtn').onclick = () => { const r = $('actsRow'); r.hidden = !r.hidden; $('plusBtn').classList.toggle('on', !r.hidden); };
+$('actPhoto').onclick = () => $('photoFile').click();
+$('actXfer').onclick = () => { $('actsRow').hidden = true; $('plusBtn').classList.remove('on'); openSheet('xferSheet'); };
+$('photoFile').onchange = async e => {
+  const files = [...(e.target.files || [])].slice(0, 4 - pendingImgs.length); e.target.value = '';
+  for (const f of files) { try { pendingImgs.push(await photoURL(f)); } catch { toast('这张图读不了'); } }
+  $('actsRow').hidden = true; $('plusBtn').classList.remove('on');
+  renderAttach();
+};
+$('attach').addEventListener('click', e => { const b = e.target.closest('[data-unattach]'); if (b) { pendingImgs.splice(+b.dataset.unattach, 1); renderAttach(); } });
+$('xferQuick').addEventListener('click', e => { const b = e.target.closest('[data-amt]'); if (b) $('xferAmt').value = b.dataset.amt; });
+$('xferGo').onclick = async () => {
+  const amount = Math.round(Math.abs(parseFloat($('xferAmt').value)) * 100) / 100;
+  if (!amount) { toast('先填金额'); return; }
+  if (!(await loadSecret(settings.provider))) { openSheet('setSheet'); toast('先填 API Key'); return; }
+  const note = $('xferNote').value.trim();
+  wallet.balance = Math.round((wallet.balance + amount) * 100) / 100;
+  wallet.log.unshift({ id: uid(), at: Date.now(), kind: 'from_you', amount, note });
+  await DB.set('wallet', wallet);
+  markFirst('xfer', `第一次给 TA 转账 ¥${money(amount)}`);
+  closeSheets(); showTab('chat');
+  await send(`（给你转账 ¥${money(amount)}${note ? '，备注：' + note : ''}）`, [], { xfer: { amount, note } });
+};
+$('walXfer').onclick = () => openSheet('xferSheet');
+$('feedNew').onclick = () => newPost(false);
+$('feed').addEventListener('click', async e => {
+  const lk = e.target.closest('[data-like]');
+  if (lk) {
+    const p = moments.find(x => x.id === lk.dataset.like); if (!p) return;
+    p.liked = !p.liked; await DB.set('moments', moments); renderFeed();
+    if (p.liked) markFirst('like', '第一次给 TA 的动态点赞');
+    return;
+  }
+  const cm = e.target.closest('[data-cmt]');
+  if (cm) { const box = $('feed').querySelector(`[data-cmtbox="${cm.dataset.cmt}"]`); box.hidden = !box.hidden; if (!box.hidden) box.querySelector('input').focus(); return; }
+  const cs = e.target.closest('[data-cmtsend]');
+  if (cs) { const inp = cs.parentElement.querySelector('input'); const t = inp.value.trim(); if (t) commentPost(cs.dataset.cmtsend, t); }
+});
+$('feed').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.closest('.cmt-in')) { e.preventDefault(); e.target.nextElementSibling.click(); } });
+document.addEventListener('click', e => {
+  const im = e.target.closest('img[data-zoom], img[data-img], .album img, .post .pic');
+  if (!im?.src) return;
+  const lb = document.createElement('div'); lb.className = 'lightbox'; lb.innerHTML = `<img src="${im.src}" alt="">`;
+  lb.onclick = () => lb.remove(); document.body.appendChild(lb);
+});
 $('perms').addEventListener('click', e => {
   const b = e.target.closest('[data-perm]'); if (!b) return;
   const k = b.dataset.perm;
@@ -2092,8 +2562,7 @@ $('thread').addEventListener('click', e => {
   if (e.target.id === 'olderBtn') { showAll = true; renderThread(); return; }
   const c = e.target.closest('[data-copy]'); if (c) { copyText(stripTags(chat.messages[+c.dataset.copy]?.content), c); return; }
   const s = e.target.closest('[data-speak]'); if (s) { speak(chat.messages[+s.dataset.speak]?.content || ''); return; }
-  const pic = e.target.closest('img[data-img]');
-  if (pic?.src) { const lb = document.createElement('div'); lb.className = 'lightbox'; lb.innerHTML = `<img src="${pic.src}" alt="">`; lb.onclick = () => lb.remove(); document.body.appendChild(lb); return; }
+  const hb = e.target.closest('[data-hbopen]'); if (hb) { openHongbao(hb.dataset.hbopen); return; }
   const sv = e.target.closest('[data-saveimg]');
   if (sv) { imgSrc(sv.dataset.saveimg).then(url => { if (!url) return; const a = document.createElement('a'); a.href = url; a.download = `知言-${ymd(new Date())}.png`; a.target = '_blank'; a.click(); }); return; }
   const rd = e.target.closest('[data-redraw]');
@@ -2104,12 +2573,18 @@ const input = $('input');
 input.addEventListener('input', () => {
   input.style.height = 'auto';
   input.style.height = Math.min(input.scrollHeight, 200) + 'px';
-  if (!controller) $('sendBtn').disabled = !input.value.trim();
+  updateSend();
 });
 input.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(hover: hover)').matches) { e.preventDefault(); submit(); }
 });
-function submit() { const t = input.value; input.value = ''; input.dispatchEvent(new Event('input')); send(t); }
+function submit() {
+  const t = input.value, imgs = pendingImgs;
+  pendingImgs = []; renderAttach();
+  input.value = ''; input.dispatchEvent(new Event('input'));
+  $('actsRow').hidden = true; $('plusBtn').classList.remove('on');
+  send(t, imgs);
+}
 $('sendBtn').onclick = () => { if (controller) controller.abort(); else submit(); };
 
 $('pAvPick').onclick = () => $('pAvFile').click();
@@ -2215,12 +2690,29 @@ $('playClose').onclick = () => { audio.pause(); $('player').hidden = true; };
 
 $('wishAdd').onclick = async () => {
   const name = $('wishInput').value.trim(); if (!name) return;
-  wishes.unshift({ id: uid(), name, done: false, added: ymd(new Date()) });
-  $('wishInput').value = ''; await DB.set('wishes', wishes); renderWishes();
+  const price = Math.round(Math.abs(parseFloat($('wishPrice').value)) * 100) / 100 || 0;
+  wishes.unshift({ id: uid(), name, done: false, added: ymd(new Date()), ...(price ? { price, saved: 0 } : {}) });
+  $('wishInput').value = ''; $('wishPrice').value = ''; await DB.set('wishes', wishes); renderWishes();
 };
 $('wishList').addEventListener('click', async e => {
   const d = e.target.closest('[data-wishdel]');
-  if (d) { wishes = wishes.filter(w => w.id !== d.dataset.wishdel); await DB.set('wishes', wishes); renderWishes(); }
+  if (d) { wishes = wishes.filter(w => w.id !== d.dataset.wishdel); await DB.set('wishes', wishes); renderWishes(); return; }
+  const sv = e.target.closest('[data-save]'), pr = e.target.closest('[data-price]');
+  const w = wishes.find(x => x.id === (sv || pr)?.dataset[sv ? 'save' : 'price']);
+  if (!w) return;
+  if (pr) {
+    const v = prompt(`「${w.name}」的目标价是多少？`, w.price || '');
+    if (v === null) return;
+    w.price = Math.round(Math.abs(parseFloat(v)) * 100) / 100 || 0;
+    await DB.set('wishes', wishes); renderWishes(); return;
+  }
+  const v = prompt(`这次为「${w.name}」存了多少？`);
+  const amt = Math.round(Math.abs(parseFloat(v)) * 100) / 100;
+  if (!amt) return;
+  const before = w.saved || 0;
+  w.saved = Math.round((before + amt) * 100) / 100;
+  await DB.set('wishes', wishes); renderWishes();
+  if (w.price && before < w.price && w.saved >= w.price) celebrate(w); else toast(`存好了，已攒 ¥${money(w.saved)}`);
 });
 $('wishList').addEventListener('change', async e => {
   const c = e.target.closest('[data-wishdone]'); if (!c) return;
@@ -2265,12 +2757,19 @@ $('diaryList').addEventListener('click', async e => {
     period = { ...period, ...(await DB.get('period') || {}) };
     health = { ...health, ...(await DB.get('health') || {}) };
     perm = await DB.get('perm') || {};
+    moments = await DB.get('moments') || [];
+    firsts = await DB.get('firsts') || {};
+    album = await DB.get('album') || [];
+    feedSeen = await DB.get('feedSeen') || 0;
+    wallet = { ...wallet, ...(await DB.get('wallet') || {}) };
     tracks = await DB.get('tracks') || [];
     for (const p of Object.keys(PROVIDERS)) configured[p] = !!(await loadSecret(p));
     await loadWall();
     await refreshImgReady();
     applyMic();
     refreshWeather();
+    paySalary();
+    updateFeedDot();
   } catch {
     toast('本地存储不可用，数据可能保存不了');
   }
