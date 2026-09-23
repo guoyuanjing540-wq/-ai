@@ -698,16 +698,17 @@
     <div class="stack" id="walGifts"></div>
     <h3>流水</h3>
     <div class="stack" id="walLog"></div>
-    <p class="note">小金库是虚拟的，不是真钱，是你们之间的小心意。TA 每天有 5 元零花钱，你也可以给 TA 转账；TA 会在特别的时候给你发红包、送礼物。一起攒钱记的是你自己存下的真钱，知言只帮你记账。</p>
+    <p class="note">小金库里是你真的存给 TA 的钱。建议在支付宝或微信里单独开一个小荷包，每次真的存进去，再在这里点"给 TA 转账"记一笔。TA 发红包、送礼物，就是从小金库里拿钱给你：领了就真的从小荷包里取出来，去犒劳自己。知言碰不到你的钱，只负责记账；TA 花钱也不会超过小金库里的余额。</p>
   </div>
 </div>
 
 <div class="sheet-bg" id="xferSheet" hidden>
   <div class="sheet" role="dialog" aria-label="给 TA 转账">
     <header><h2>给 TA 转账</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
-    <label class="field">金额（虚拟的，不会扣你的钱）<input id="xferAmt" inputmode="decimal" placeholder="52.0"></label>
+    <label class="field">金额<input id="xferAmt" inputmode="decimal" placeholder="52.0"></label>
     <div class="row" id="xferQuick"><button class="btn" type="button" data-amt="5.2">5.2</button><button class="btn" type="button" data-amt="13.14">13.14</button><button class="btn" type="button" data-amt="52">52</button><button class="btn" type="button" data-amt="520">520</button></div>
     <label class="field">备注（可不填）<input id="xferNote" maxlength="30" placeholder="比如：请你喝奶茶"></label>
+    <p class="note">先在支付宝或微信的小荷包里真的存进去，再在这里记一笔，TA 就能用这笔钱给你发红包、送礼物。知言不会动你的钱。</p>
     <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="xferGo">转账</button></div>
   </div>
 </div>
@@ -1018,9 +1019,9 @@ function cardHTML(c) {
     case 'mem':
       return `<div class="card"><span class="k">◇ 记住了</span><span class="s">${esc(c.text)}</span></div>`;
     case 'hb':
-      return `<div class="hb${c.opened ? ' opened' : ''}" data-hb="${c.id}"><span class="k">🧧 ${esc(P().name || 'TA')}的红包</span><b>${esc(c.wish || '恭喜发财，大吉大利')}</b>${c.opened ? `<span class="s">已领取 ¥${money(c.amount)}</span>` : `<button type="button" data-hbopen="${c.id}">開</button>`}</div>`;
+      return `<div class="hb${c.opened ? ' opened' : ''}" data-hb="${c.id}"><span class="k">🧧 ${esc(P().name || 'TA')}的红包</span><b>${esc(c.wish || '恭喜发财，大吉大利')}</b>${c.opened ? `<span class="s">已领取 ¥${money(c.amount)} · 去犒劳一下自己吧</span>` : `<button type="button" data-hbopen="${c.id}">開</button>`}</div>`;
     case 'gift':
-      return `<div class="card"><span class="k">🎁 TA 送你的礼物</span><span class="t">${esc(c.name)}</span><span class="s">${c.price ? `从小金库花了 ¥${money(c.price)}` : '一份心意'}</span></div>`;
+      return `<div class="card"><span class="k">🎁 TA 送你的礼物</span><span class="t">${esc(c.name)}</span><span class="s">${c.price ? `从小金库拿 ¥${money(c.price)}，去给自己买吧` : '一份心意'}</span></div>`;
     case 'save': {
       const pct = c.price ? Math.min(100, c.saved / c.price * 100) : 0;
       return `<div class="card"><span class="k">🐷 一起攒钱</span><span class="t">${esc(c.name)} +¥${money(c.amount)}</span>${c.price ? `<div class="progress"><i style="width:${pct}%"></i></div>` : ''}<span class="s">已攒 ¥${money(c.saved)}${c.price ? ` / ¥${money(c.price)}` : ''}${c.price && c.saved >= c.price ? ' · 攒够啦 🎉' : ''}</span></div>`;
@@ -1064,7 +1065,7 @@ function botInner(m, i, streaming) {
 }
 
 function userHTML(m) {
-  if (m.xfer) return `<div class="xfer"><small>转账给 ${esc(P().name || 'TA')}</small><b>¥${money(m.xfer.amount)}</b><small>${esc(m.xfer.note || '存进 TA 的小金库')}</small></div>`;
+  if (m.xfer) return `<div class="xfer"><small>转账给 ${esc(P().name || 'TA')}</small><b>¥${money(m.xfer.amount)}</b><small>${esc(m.xfer.note || '存进小金库')}</small></div>`;
   if (m.evt) return `<div class="evt">${esc(m.content)}</div>`;
   const imgs = m.imgs?.length ? `<div class="uimgs">${m.imgs.map(u => `<img src="${u}" data-zoom alt="照片">`).join('')}</div>` : '';
   return `<div class="msg user${m.content ? '' : ' pic'}">${imgs}${esc(m.content || '')}</div>`;
@@ -1130,7 +1131,7 @@ function systemPrompt() {
 - 对方告诉你值得长期记住的事：[[记住|内容]]
 - 对方说花了钱或收到钱：[[记账|支出或收入|金额|类别|备注]]（类别从这些里选：支出 ${CATS.out.join('、')}；收入 ${CATS.in.join('、')}）
 - 对方说喝了水：[[喝水|杯数]]
-- 特别的时候（纪念日、对方难过、对方做成了什么事）可以从你的小金库给对方发红包或送小礼物，别太频繁，花的不能超过余额：[[红包|金额|一句话]]、[[礼物|礼物名|价格]]
+- 特别的时候（纪念日、对方难过、对方做成了什么事）可以从小金库里拿钱给对方发红包或送小礼物（这是对方真的存进来的钱，领了就会真的去花），别太频繁，花的不能超过余额：[[红包|金额|一句话]]、[[礼物|礼物名|价格]]
 - 对方说为某个心愿存了钱：[[攒钱|心愿名|金额]]${imgReady ? `
 - 对方想看图、让你画画、要头像或壁纸，或你想让对方看看某个画面：[[画|画面描述]]（写清主体、场景、风格、光线和色调，一次最多一张）` : ''}
 只在确实需要时用，一次最多 5 个。标记之外照常说话。${imgReady ? '' : '\n你现在还不能画图；对方让你画的话，温柔地告诉对方在设置的"画图"里填一个智谱的 Key 就可以（免费）。'}`,
@@ -1549,7 +1550,6 @@ async function maybeOpener() {
   });
 }
 async function onReturn() {
-  paySalary();
   setTimeout(maybeAutoPost, 4000);
   const got = await pullInbox();
   if (!got) await maybeOpener(); else markActive();
@@ -2215,17 +2215,8 @@ async function commentPost(id, text) {
 }
 
 // ---- TA 的小金库 ----
-function paySalary() {
-  const t = ymd(new Date());
-  if (wallet.lastSalary === t) return;
-  wallet.lastSalary = t;
-  wallet.balance = Math.round((wallet.balance + 5) * 100) / 100;
-  wallet.log.unshift({ id: uid(), at: Date.now(), kind: 'salary', amount: 5, note: '每天的零花钱' });
-  wallet.log = wallet.log.slice(0, 300);
-  DB.set('wallet', wallet).catch(() => {});
-}
 function walletContext() {
-  const out = [`你有一个虚拟小金库（不是真钱，是你们之间的小心意），现在有 ¥${money(wallet.balance)}。对方给你转账时，真心道谢，可以说说你打算怎么用。`];
+  const out = [`你们有一个小金库，里面是对方真的存给你的钱，现在有 ¥${money(wallet.balance)}。对方给你转账（存钱）时，真心道谢，可以说说你打算怎么用。这是真钱，花的时候要有分寸，最好是让对方拿去犒劳自己。`];
   const saving = wishes.filter(w => !w.done && (w.price || w.saved));
   if (saving.length) out.push('你们一起攒钱的心愿：' + saving.map(w => `${w.name} 已攒 ¥${money(w.saved || 0)}${w.price ? ` / ¥${money(w.price)}` : ''}`).join('；'));
   if (moments.length) out.push('你最近发的动态：' + moments.slice(0, 2).map(p => `「${p.text}」`).join(' '));
@@ -2239,7 +2230,7 @@ function renderWallet() {
   $('walSave').textContent = '¥' + money(saving.reduce((a, w) => a + w.saved, 0));
   $('walSaveSub').textContent = saving.length ? saving.map(w => `${w.name} ¥${money(w.saved)}${w.price ? '/' + money(w.price) : ''}`).join(' · ') : '在心愿单里填上目标价，就能一起攒钱';
   $('walGifts').innerHTML = wallet.gifts.length ? wallet.gifts.map(g => `<div class="li"><span><b>🎁 ${esc(g.name)}</b><small>${new Date(g.at).toLocaleDateString('zh-CN')}</small></span><span class="amt">${g.price ? '¥' + money(g.price) : '心意'}</span></div>`).join('') : '<p class="note">还没有。</p>';
-  const label = { salary: '零花钱', from_you: '你转给 TA', hongbao: '给你发红包', gift: '给你买礼物' };
+  const label = { salary: '零花钱', from_you: '你存给 TA', hongbao: '给你发红包', gift: '给你买礼物' };
   $('walLog').innerHTML = wallet.log.length ? wallet.log.slice(0, 50).map(l => `<div class="li"><span><b>${label[l.kind] || ''}</b>${l.note ? ' · ' + esc(l.note) : ''}<small>${ago(l.at)}</small></span><span class="amt${l.amount > 0 ? ' in' : ''}">${l.amount > 0 ? '+' : '−'}${money(Math.abs(l.amount))}</span></div>`).join('') : '<p class="note">还没有。</p>';
 }
 async function openHongbao(id) {
@@ -2248,7 +2239,7 @@ async function openHongbao(id) {
     wallet.received = Math.round((wallet.received + c.amount) * 100) / 100;
     await DB.set('wallet', wallet); await saveChat(chat);
     const el = document.querySelector(`[data-hb="${id}"]`); if (el) el.outerHTML = cardHTML(c);
-    toast(`收到 ¥${money(c.amount)}`);
+    toast(`从小金库拿 ¥${money(c.amount)}，去犒劳一下自己吧`);
     markFirst('hongbao', `第一次收到 TA 的红包 ¥${money(c.amount)}`);
   }
 }
@@ -2768,7 +2759,6 @@ $('diaryList').addEventListener('click', async e => {
     await refreshImgReady();
     applyMic();
     refreshWeather();
-    paySalary();
     updateFeedDot();
   } catch {
     toast('本地存储不可用，数据可能保存不了');
