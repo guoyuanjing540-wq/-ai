@@ -7,7 +7,10 @@
     "build": "node build-app.mjs",
     "sync": "npm run build && cap sync android",
     "apk": "npm run sync && cd android && ./gradlew assembleDebug",
-    "open": "npm run sync && cap open android"
+    "open": "npm run sync && cap open android",
+    "test": "TZ=Asia/Shanghai node --test \"test/*.test.js\"",
+    "test:browser": "TZ=Asia/Shanghai node test/browser.smoke.mjs",
+    "test:all": "npm test && npm run test:browser"
   },
   "repository": {
     "type": "git",

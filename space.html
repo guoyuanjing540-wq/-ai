@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>共同空间 · 知言</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#14161a">
+<style>
+:root{
+  --bg:#f3f0ec; --fg:#23262b; --dim:#6d7480; --line:rgba(0,0,0,.10);
+  --glass:rgba(255,255,255,.55); --accent:#b0616b; --radius:16px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#14161a; --fg:#e8e6e3; --dim:#98a0ac; --line:rgba(255,255,255,.12);
+    --glass:rgba(32,36,42,.55); --accent:#e7a2aa;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14161a; --fg:#e8e6e3; --dim:#98a0ac; --line:rgba(255,255,255,.12);
+  --glass:rgba(32,36,42,.55); --accent:#e7a2aa;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.6 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  overflow:hidden;
+}
+#stage{position:fixed;inset:0}
+#sky{width:100%;height:100%;display:block}
+.panel{
+  position:absolute;left:0;right:0;bottom:56px;top:0;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:16px 16px 24px;display:none;
+  background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+}
+.panel.on{display:block}
+.hud{
+  position:absolute;top:0;left:0;right:0;padding:14px 16px;
+  pointer-events:none;text-shadow:0 1px 8px rgba(0,0,0,.35);
+}
+.hud .line{font-size:13px;opacity:.9}
+.hud .desc{font-size:15px;margin-top:2px;font-weight:600}
+body.night .hud{color:#f1ece4}
+nav{
+  position:fixed;left:0;right:0;bottom:0;height:56px;display:flex;
+  background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1;background:none;border:0;color:var(--dim);font:inherit;font-size:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;
+}
+nav button.on{color:var(--accent);font-weight:600}
+nav .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:0}
+nav button.on .dot{opacity:1}
+h2{font-size:17px;margin:0 0 10px}
+h3{font-size:14px;margin:18px 0 8px;color:var(--dim);font-weight:600}
+.card{
+  background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 14px;margin-bottom:10px;
+}
+label{display:block;font-size:12px;color:var(--dim);margin:8px 0 4px}
+input,textarea,select{
+  width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;
+  background:rgba(127,127,127,.08);color:var(--fg);font:inherit;
+}
+textarea{min-height:72px;resize:vertical}
+button.btn{
+  padding:8px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--accent);color:#fff;font:inherit;cursor:pointer;
+}
+button.ghost{background:transparent;color:var(--fg)}
+button.sm{padding:4px 9px;font-size:12px;border-radius:8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.right{margin-left:auto}
+.tag{
+  display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;
+  background:rgba(127,127,127,.16);color:var(--dim);margin-right:5px;
+}
+.tag.t-project{background:rgba(176,97,107,.18);color:var(--accent)}
+.tag.t-locked{background:rgba(220,170,60,.22);color:#a8801e}
+.muted{color:var(--dim);font-size:13px}
+.empty{color:var(--dim);text-align:center;padding:28px 0;font-size:13px}
+.switch{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.switch:last-child{border-bottom:0}
+.switch input[type=checkbox]{width:auto}
+.switch .lab{flex:1}
+.switch .num{width:64px}
+.post .who{font-weight:600;font-size:14px}
+.post .when{font-size:11px;color:var(--dim);margin-left:6px}
+.post .body{margin:6px 0;white-space:pre-wrap;word-break:break-word}
+.cmt{font-size:13px;padding:4px 0 4px 10px;border-left:2px solid var(--line);margin-top:4px}
+.cmt b{font-weight:600}
+.badge{
+  display:inline-block;min-width:16px;height:16px;line-height:16px;padding:0 4px;
+  border-radius:8px;background:var(--accent);color:#fff;font-size:10px;text-align:center;
+}
+.note{
+  font-size:12px;color:var(--dim);background:rgba(127,127,127,.10);
+  border-left:3px solid var(--accent);padding:8px 10px;border-radius:0 8px 8px 0;margin:8px 0;
+}
+.bar{height:5px;border-radius:3px;background:rgba(127,127,127,.2);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.chip{
+  padding:5px 11px;border-radius:999px;border:1px solid var(--line);
+  background:transparent;color:var(--fg);font:inherit;font-size:12px;cursor:pointer;
+}
+.chip.on{background:var(--accent);color:#fff;border-color:transparent}
+</style>
+</head>
+<body>
+
+<div id="stage"><canvas id="sky"></canvas></div>
+
+<div class="hud" id="hud">
+  <div class="line" id="hudTime"></div>
+  <div class="desc" id="hudDesc"></div>
+</div>
+
+<!-- 朋友圈 -->
+<section class="panel" id="p-feed">
+  <h2>朋友圈</h2>
+  <div class="card">
+    <textarea id="postText" placeholder="说点什么…"></textarea>
+    <div class="row" style="margin-top:8px">
+      <input type="file" id="postImg" accept="image/*" multiple style="flex:1;font-size:12px">
+      <button class="btn" id="doPost">发布</button>
+    </div>
+  </div>
+  <div id="dmBox"></div>
+  <div id="feedList"></div>
+</section>
+
+<!-- 记忆 -->
+<section class="panel" id="p-mem">
+  <h2>记忆</h2>
+  <div class="card">
+    <div class="row">
+      <input id="memQ" placeholder="搜索记忆…" style="flex:1">
+      <select id="memType" style="width:auto">
+        <option value="">全部</option>
+        <option value="working">当前会话</option>
+        <option value="episodic">发生过的事</option>
+        <option value="semantic">长期事实</option>
+        <option value="relationship">我们之间</option>
+        <option value="project">项目</option>
+      </select>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="memNew" placeholder="手动记一条…" style="flex:1">
+      <button class="btn sm" id="memAdd">记下</button>
+    </div>
+    <div class="muted" id="memStat" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">不许记住的内容</h3>
+    <div class="row">
+      <input id="blockNew" placeholder="比如：身份证号" style="flex:1">
+      <button class="btn sm ghost" id="blockAdd">加入</button>
+    </div>
+    <div id="blockList" style="margin-top:8px"></div>
+  </div>
+  <div id="memList"></div>
+</section>
+
+<!-- 一起看书 -->
+<section class="panel" id="p-read">
+  <h2>一起看</h2>
+  <div class="note" id="srcNote"></div>
+  <div class="card">
+    <label>标题</label><input id="bkTitle" placeholder="比如：一篇长文">
+    <label>正文（复制粘贴进来）</label><textarea id="bkText" placeholder="把正文贴这里…"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" id="bkAdd">一起读</button>
+      <button class="btn ghost sm" id="bkLink">只存链接</button>
+    </div>
+  </div>
+  <div id="bookList"></div>
+  <div id="reader"></div>
+</section>
+
+<!-- 设置 -->
+<section class="panel" id="p-set">
+  <h2>设置</h2>
+
+  <h3>TA 是谁（人格独立保存，换模型不会丢）</h3>
+  <div class="card" id="personaForm"></div>
+
+  <h3>主动消息</h3>
+  <div class="card" id="proForm"></div>
+
+  <h3>衣柜</h3>
+  <div class="card" id="wardrobeBox"></div>
+
+  <h3>共同空间</h3>
+  <div class="card" id="worldBox"></div>
+
+  <h3>TA 现在想做什么</h3>
+  <div class="card" id="planBox"></div>
+</section>
+
+<nav>
+  <button data-tab="space" class="on"><span>空间</span><span class="dot"></span></button>
+  <button data-tab="feed"><span>朋友圈 <span id="dmBadge"></span></span><span class="dot"></span></button>
+  <button data-tab="mem"><span>记忆</span><span class="dot"></span></button>
+  <button data-tab="read"><span>一起看</span><span class="dot"></span></button>
+  <button data-tab="set"><span>设置</span><span class="dot"></span></button>
+</nav>
+
+<script type="module">
+import { createCompanion } from './src/core/companion.js';
+import { createPersona, PERSONA_FIELDS } from './src/core/persona.js';
+import { buildDrawList, defaultRegistry } from './src/core/renderer.js';
+import { CATEGORIES } from './src/core/proactive.js';
+import { MEMORY_TYPES } from './src/core/memory.js';
+import { SOURCE_NOTE } from './src/core/reading.js';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ago = t => {
+  const d = (Date.now() - t) / 1000;
+  if (d < 60) return '刚刚';
+  if (d < 3600) return Math.floor(d / 60) + ' 分钟前';
+  if (d < 86400) return Math.floor(d / 3600) + ' 小时前';
+  return Math.floor(d / 86400) + ' 天前';
+};
+const TYPE_LABEL = { working:'当前会话', episodic:'发生过的事', semantic:'长期事实', relationship:'我们之间', project:'项目' };
+
+const companion = createCompanion();
+window.ZY = companion;                       // 老的 index.html 也能用上这套内核
+
+const registry = defaultRegistry();
+const renderer = registry.create('canvas2d', { canvas: $('sky') });
+
+// ------------------------------------------------------------ 渲染循环
+let scene = companion.scene();
+function refreshScene() {
+  scene = companion.scene();
+  companion.avatar.syncWithScene(scene);
+  // 面板跟着共同空间走，而不是跟着系统主题 —— 空间里是夜里，面板就该是暗的
+  const dark = scene.period === 'night' || scene.period === 'dusk';
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.body.classList.toggle('night', dark);
+  $('hudTime').textContent =
+    `${new Date(scene.at).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})} · ` +
+    ({dawn:'清晨',day:'白天',dusk:'傍晚',night:'夜里'}[scene.period]) +
+    ({clear:'',cloudy:' · 阴',rain:' · 雨'}[scene.weather]);
+  $('hudDesc').textContent = scene.describe();
+}
+function frame(t) {
+  companion.avatar.tick();
+  const pose = companion.avatar.pose();
+  renderer.render(buildDrawList(scene, pose, { width: $('sky').width, height: $('sky').height }), t);
+  requestAnimationFrame(frame);
+}
+function onResize() { renderer.resize(); }
+addEventListener('resize', onResize);
+
+// ------------------------------------------------------------ 导航
+let tab = 'space';
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.tab));
+function show(name) {
+  tab = name;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  $('hud').style.display = name === 'space' ? '' : 'none';
+  if (name !== 'space') $('p-' + name).classList.add('on');
+  ({ feed: drawFeed, mem: drawMem, read: drawRead, set: drawSet })[name]?.();
+}
+
+// ------------------------------------------------------------ 朋友圈
+$('doPost').onclick = async () => {
+  const text = $('postText').value.trim();
+  const files = [...$('postImg').files];
+  if (!text && !files.length) return;
+  const images = await Promise.all(files.slice(0, 9).map(f => new Promise(res => {
+    const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f);
+  })));
+  await companion.feed.post({ text, images });
+  $('postText').value = ''; $('postImg').value = '';
+  await companion.feed.reactToUserPosts();     // 住户来评论
+  drawFeed();
+};
+
+async function drawFeed() {
+  const dms = await companion.feed.unreadDMs();
+  $('dmBadge').innerHTML = dms.length ? `<span class="badge">${dms.length}</span>` : '';
+  const rs = await companion.feed.residents();
+  const nameOf = id => rs.find(r => r.id === id)?.name || id;
+  $('dmBox').innerHTML = dms.length ? `<div class="card">
+    <h3 style="margin-top:0">私聊</h3>
+    ${dms.map(m => `<div class="cmt"><b>${esc(nameOf(m.residentId))}</b>：${esc(m.text)}
+      <button class="chip sm" data-dm="${m.id}" style="margin-left:6px">知道了</button></div>`).join('')}
+  </div>` : '';
+  $('dmBox').querySelectorAll('[data-dm]').forEach(b =>
+    b.onclick = async () => { await companion.feed.markDMRead(b.dataset.dm); drawFeed(); });
+
+  const tl = await companion.feed.timeline({ limit: 40 });
+  $('feedList').innerHTML = tl.length ? tl.map(p => `
+    <div class="card post">
+      <div><span class="who">${esc(p.author.name)}</span><span class="when">${ago(p.at)}</span></div>
+      <div class="body">${esc(p.text)}</div>
+      ${p.images.map(src => `<img src="${esc(src)}" style="max-width:100%;border-radius:10px;margin-top:6px">`).join('')}
+      <div class="row" style="margin-top:6px">
+        <button class="chip ${p.likes.includes('me') ? 'on' : ''}" data-like="${p.id}">赞 ${p.likes.length || ''}</button>
+      </div>
+      ${p.comments.map(c => `<div class="cmt"><b>${esc(c.author.name)}</b>：${esc(c.text)}</div>`).join('')}
+    </div>`).join('') : '<div class="empty">还没有动态。发一条试试，圈里的人会来评论。</div>';
+  $('feedList').querySelectorAll('[data-like]').forEach(b =>
+    b.onclick = async () => { await companion.feed.like(b.dataset.like); drawFeed(); });
+}
+
+// ------------------------------------------------------------ 记忆
+$('memAdd').onclick = async () => {
+  const v = $('memNew').value.trim(); if (!v) return;
+  const r = await companion.memory.add({ content: v, type: 'semantic', source: 'user', importance: 0.6 });
+  if (!r.ok && r.reason === 'blocked') alert('这条命中了「不许记住」的内容，没有存。');
+  $('memNew').value = ''; drawMem();
+};
+$('memQ').oninput = () => drawMem();
+$('memType').onchange = () => drawMem();
+$('blockAdd').onclick = async () => {
+  const v = $('blockNew').value.trim(); if (!v) return;
+  await companion.memory.block(v); $('blockNew').value = ''; drawMem();
+};
+
+async function drawMem() {
+  const list = await companion.memory.search($('memQ').value.trim(), { type: $('memType').value || undefined, limit: 200 });
+  const st = await companion.memory.stats();
+  $('memStat').textContent = `共 ${st.total} 条 · ` +
+    MEMORY_TYPES.map(t => `${TYPE_LABEL[t]} ${st.byType[t] || 0}`).join(' · ') + ` · 锁定 ${st.locked}`;
+
+  const bl = await companion.memory.blocklist();
+  $('blockList').innerHTML = bl.length
+    ? bl.map(b => `<span class="tag">${esc(b)} <a href="#" data-unblock="${esc(b)}">×</a></span>`).join('')
+    : '<span class="muted">还没有设置。设了之后，含这些字的内容不会进长期记忆。</span>';
+  $('blockList').querySelectorAll('[data-unblock]').forEach(a =>
+    a.onclick = async e => { e.preventDefault(); await companion.memory.unblock(a.dataset.unblock); drawMem(); });
+
+  $('memList').innerHTML = list.length ? list.map(m => `
+    <div class="card">
+      <div><span class="tag t-${m.type}">${TYPE_LABEL[m.type]}</span>
+        ${m.locked ? '<span class="tag t-locked">已锁定</span>' : ''}
+        <span class="muted">${ago(m.updated_at)} · 重要度 ${m.importance.toFixed(1)}</span></div>
+      <div contenteditable data-edit="${m.id}" style="margin:6px 0">${esc(m.content)}</div>
+      <div class="row">
+        ${m.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}
+        <span class="right"></span>
+        <button class="chip" data-lock="${m.id}">${m.locked ? '解锁' : '锁定'}</button>
+        <button class="chip" data-del="${m.id}">删除</button>
+      </div>
+    </div>`).join('') : '<div class="empty">还没有记忆。</div>';
+
+  $('memList').querySelectorAll('[data-edit]').forEach(el =>
+    el.onblur = async () => { await companion.memory.update(el.dataset.edit, { content: el.textContent.trim() }); });
+  $('memList').querySelectorAll('[data-lock]').forEach(b =>
+    b.onclick = async () => {
+      const m = await companion.memory.get(b.dataset.lock);
+      await (m.locked ? companion.memory.unlock(m.id) : companion.memory.lock(m.id));
+      drawMem();
+    });
+  $('memList').querySelectorAll('[data-del]').forEach(b =>
+    b.onclick = async () => { if (confirm('删掉这条记忆？')) { await companion.memory.remove(b.dataset.del); drawMem(); } });
+}
+
+// ------------------------------------------------------------ 一起看书
+$('srcNote').textContent = SOURCE_NOTE;
+$('bkAdd').onclick = async () => {
+  const title = $('bkTitle').value.trim(), text = $('bkText').value.trim();
+  if (!text) return alert('把正文贴进来');
+  await companion.library.addFromText({ title: title || '未命名', text });
+  $('bkTitle').value = ''; $('bkText').value = ''; drawRead();
+};
+$('bkLink').onclick = async () => {
+  const url = prompt('链接地址（只存链接，不抓正文）');
+  if (!url) return;
+  try { await companion.library.addLink({ title: $('bkTitle').value.trim() || url, url }); drawRead(); }
+  catch (e) { alert(e.message); }
+};
+
+let openBook = null, openChapter = 0;
+async function drawRead() {
+  const books = await companion.library.books();
+  $('bookList').innerHTML = books.length ? books.map(b => {
+    const total = b.chapters.length || 1;
+    const pct = Math.round((b.progress.chapter + 1) / total * 100);
+    return `<div class="card">
+      <div class="row"><b>${esc(b.title)}</b><span class="tag">${b.kind === 'link' ? '链接' : b.kind === 'rss' ? 'RSS' : '正文'}</span>
+      <span class="right"></span>
+      ${b.kind === 'link' ? `<a class="chip" href="${esc(b.url)}" target="_blank" rel="noopener noreferrer">打开</a>`
+        : `<button class="chip" data-open="${b.id}">继续读</button>`}
+      <button class="chip" data-rm="${b.id}">删</button></div>
+      ${b.kind === 'link' ? '' : `<div class="muted">第 ${b.progress.chapter + 1} / ${total} 章</div><div class="bar"><i style="width:${pct}%"></i></div>`}
+    </div>`;
+  }).join('') : '<div class="empty">还没有一起读的东西。</div>';
+
+  $('bookList').querySelectorAll('[data-open]').forEach(b =>
+    b.onclick = async () => { openBook = await companion.library.get(b.dataset.open); openChapter = openBook.progress.chapter; drawReader(); });
+  $('bookList').querySelectorAll('[data-rm]').forEach(b =>
+    b.onclick = async () => { await companion.library.remove(b.dataset.rm); openBook = null; drawRead(); });
+  drawReader();
+}
+async function drawReader() {
+  if (!openBook) { $('reader').innerHTML = ''; return; }
+  const ch = openBook.chapters[openChapter];
+  if (!ch) { $('reader').innerHTML = ''; return; }
+  $('reader').innerHTML = `<div class="card">
+    <div class="row"><b>${esc(ch.title)}</b><span class="right"></span>
+      <button class="chip" data-prev ${openChapter === 0 ? 'disabled' : ''}>上一章</button>
+      <button class="chip" data-next ${openChapter >= openBook.chapters.length - 1 ? 'disabled' : ''}>下一章</button></div>
+    <div style="white-space:pre-wrap;margin-top:8px">${esc(ch.body)}</div>
+  </div>`;
+  $('reader').querySelector('[data-prev]').onclick = async () => { openChapter--; await companion.library.setProgress(openBook.id, { chapter: openChapter }); drawRead(); };
+  $('reader').querySelector('[data-next]').onclick = async () => { openChapter++; await companion.library.setProgress(openBook.id, { chapter: openChapter }); drawRead(); };
+}
+
+// ------------------------------------------------------------ 设置
+async function drawSet() {
+  // 人格
+  const p = (await companion.persona.active()) || await companion.persona.save(createPersona());
+  const LAB = { name:'名字', relationship_style:'关系', speaking_style:'说话方式', personality:'性格',
+    preferences:'喜好', boundaries:'边界', interaction_rules:'互动规则', custom_prompt:'你自己写的补充（优先级最高）' };
+  $('personaForm').innerHTML = PERSONA_FIELDS.map(f =>
+    `<label>${LAB[f]}</label>${f === 'custom_prompt' || f === 'personality'
+      ? `<textarea data-p="${f}">${esc(p[f])}</textarea>`
+      : `<input data-p="${f}" value="${esc(p[f])}">`}`).join('') +
+    `<div class="row" style="margin-top:10px"><button class="btn" id="savePersona">保存</button>
+     <span class="muted">人格存在 persona:* 里，跟模型设置分开。</span></div>`;
+  $('savePersona').onclick = async () => {
+    const next = { ...p };
+    $('personaForm').querySelectorAll('[data-p]').forEach(el => next[el.dataset.p] = el.value);
+    await companion.persona.save(next);
+    alert('保存了。换模型也不会丢。');
+  };
+
+  // 主动消息
+  const pol = await companion.gate.policy();
+  $('proForm').innerHTML = `
+    <div class="switch"><span class="lab"><b>总开关</b></span>
+      <input type="checkbox" id="proOn" ${pol.enabled ? 'checked' : ''}></div>
+    <div class="switch"><span class="lab">勿扰时间</span>
+      <input type="checkbox" id="dndOn" ${pol.dnd.on ? 'checked' : ''}>
+      <input class="num" id="dndFrom" value="${pol.dnd.from}"><input class="num" id="dndTo" value="${pol.dnd.to}"></div>
+    <div class="switch"><span class="lab">每天最多几条</span>
+      <input class="num" type="number" id="perDay" value="${pol.totalPerDay}"></div>
+    <div class="switch"><span class="lab">最少隔多少分钟</span>
+      <input class="num" type="number" id="minGap" value="${pol.minGapMinutes}"></div>
+    <h3>分类</h3>
+    ${Object.entries(CATEGORIES).map(([k, v]) => `
+      <div class="switch"><span class="lab">${v.label}</span>
+        <input type="checkbox" data-cat="${k}" ${pol.categories[k]?.on ? 'checked' : ''}>
+        <input class="num" type="number" data-catnum="${k}" value="${pol.categories[k]?.perDay ?? v.perDay}"></div>`).join('')}
+    <div class="row" style="margin-top:10px"><button class="btn" id="savePro">保存</button>
+      <span class="muted" id="proCount"></span></div>`;
+  $('proCount').textContent = `今天已发 ${await companion.gate.todayCount()} 条`;
+  $('savePro').onclick = async () => {
+    await companion.gate.setPolicy({
+      enabled: $('proOn').checked,
+      dnd: { on: $('dndOn').checked, from: $('dndFrom').value, to: $('dndTo').value },
+      totalPerDay: +$('perDay').value, minGapMinutes: +$('minGap').value,
+    });
+    for (const el of $('proForm').querySelectorAll('[data-cat]')) {
+      const k = el.dataset.cat;
+      await companion.gate.setCategory(k, { on: el.checked, perDay: +$('proForm').querySelector(`[data-catnum="${k}"]`).value });
+    }
+    alert('保存了。所有主动消息都要过这道闸。');
+  };
+
+  // 衣柜
+  const outfits = await companion.wardrobe.outfits();
+  const cur = await companion.wardrobe.resolveCurrent();
+  $('wardrobeBox').innerHTML = `
+    <div class="row">${outfits.map(o =>
+      `<button class="chip ${cur.outfit?.id === o.id ? 'on' : ''}" data-fit="${o.id}">${esc(o.name)}</button>`).join('')}</div>
+    <div class="muted" style="margin-top:8px">现在穿：${cur.pieces.map(x => esc(x.name)).join(' · ') || '—'}
+      ${cur.lockedByUser ? '（你指定的，TA 不会自己换）' : '（TA 会按场景自己换）'}</div>
+    <div class="row" style="margin-top:8px">
+      <button class="chip" id="unlockFit">交给 TA 自己决定</button>
+      <button class="chip" id="favFit">我喜欢这套</button></div>
+    <div class="muted" style="margin-top:6px">示例资产只有几件，商城和抽卡不做。</div>`;
+  $('wardrobeBox').querySelectorAll('[data-fit]').forEach(b =>
+    b.onclick = async () => { await companion.wardrobe.wear(b.dataset.fit, { byUser: true }); drawSet(); });
+  $('unlockFit').onclick = async () => { await companion.wardrobe.unlock(); await companion.wardrobe.autoSelect(companion.scene()); drawSet(); };
+  $('favFit').onclick = async () => { if (cur.outfit) { await companion.wardrobe.favorite(cur.outfit.id); alert('记住了，以后会偏向这套。'); } };
+
+  // 共同空间：当前项目 + 离开时间（方便看效果）
+  const rt = companion.runtime;
+  $('worldBox').innerHTML = `
+    <label>当前一起做的项目</label>
+    <div class="row">
+      <select id="projKind" style="width:auto">
+        <option value="">没有</option><option value="novel">写小说</option>
+        <option value="software">写软件</option><option value="study">学习</option></select>
+      <input id="projName" placeholder="项目名" style="flex:1" value="${esc(rt.project?.name || '')}">
+    </div>
+    <label>假装我已经多久没来了（看桌面变化）</label>
+    <div class="row">
+      ${[0, 4, 20, 120].map(h => `<button class="chip" data-away="${h}">${h === 0 ? '刚来' : h + ' 小时'}</button>`).join('')}
+    </div>
+    <div class="muted" style="margin-top:8px">${esc(companion.scene().describe())}</div>`;
+  $('projKind').value = rt.project?.kind || '';
+  const applyProj = () => {
+    const kind = $('projKind').value;
+    companion.setRuntime({ project: kind ? { id: 'p_' + kind, kind, name: $('projName').value || '未命名' } : null });
+    refreshScene(); drawSet();
+  };
+  $('projKind').onchange = applyProj;
+  $('projName').onchange = applyProj;
+  $('worldBox').querySelectorAll('[data-away]').forEach(b =>
+    b.onclick = () => { companion.setRuntime({ lastSeenAt: Date.now() - (+b.dataset.away) * 3600e3 }); refreshScene(); drawSet(); });
+
+  // TA 现在想做什么
+  const plan = companion.autonomy.plan(companion.scene(), {});
+  const LABEL = { idle:'发呆', change_outfit:'换身衣服', read:'看会儿书', work:'干活', write_diary:'写日记',
+    post_moment:'发条动态', greet:'打招呼', check_in:'问问你', share_thought:'说点想法' };
+  $('planBox').innerHTML = plan.slice(0, 5).map(x =>
+    `<div class="switch"><span class="lab">${LABEL[x.intent] || x.intent}</span>
+      <span class="muted">${x.score.toFixed(2)}</span></div>`).join('') +
+    `<div class="row" style="margin-top:10px"><button class="btn" id="runTick">让 TA 现在动一下</button></div>
+     <div class="muted" id="tickOut" style="margin-top:8px"></div>`;
+  $('runTick').onclick = async () => {
+    const r = await companion.autonomy.tick({ lastUserActiveAt: companion.runtime.lastUserActiveAt });
+    $('tickOut').textContent = r.acted
+      ? `TA 做了：${LABEL[r.intent] || r.intent}${r.result?.text ? ' —— ' + r.result.text : ''}`
+      : `没做什么：${r.reason}`;
+    refreshScene();
+  };
+}
+
+// ------------------------------------------------------------ 启动
+(async function start() {
+  onResize();
+  await companion.enter();                 // 欢迎动作 + 场景自动换装
+  refreshScene();
+  requestAnimationFrame(frame);
+  setInterval(refreshScene, 60000);        // 每分钟跟一次时间
+  setInterval(async () => {                // 自主循环：一切打扰都要过闸
+    await companion.autonomy.tick({ lastUserActiveAt: companion.runtime.lastUserActiveAt, minIntervalMs: 5 * 60000 });
+    if (tab === 'feed') drawFeed();
+  }, 5 * 60000);
+  document.body.dataset.ready = '1';
+})();
+</script>
+</body>
+</html>

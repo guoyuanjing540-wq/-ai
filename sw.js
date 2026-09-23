@@ -1,7 +1,13 @@
 // 每次更新文件后把版本号 +1，手机上才会拿到新版本
-const CACHE = 'zhiyan-v12';
+const CACHE = 'zhiyan-v14';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/marked.min.js', './vendor/purify.min.js',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+  './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
+  // 共同空间（v2 内核）
+  './space.html',
+  './src/core/clock.js', './src/core/store.js', './src/core/persona.js', './src/core/memory.js',
+  './src/core/scene.js', './src/core/avatar.js', './src/core/renderer.js', './src/core/proactive.js',
+  './src/core/wardrobe.js', './src/core/residents.js', './src/core/reading.js', './src/core/autonomy.js',
+  './src/core/companion.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

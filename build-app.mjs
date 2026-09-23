@@ -3,7 +3,7 @@
 // 不拷 worker.js（那是跑在 Cloudflare 上的）、不拷 screenshots/。
 import { cp, rm, mkdir } from 'node:fs/promises';
 
-const FILES = ['index.html', 'manifest.webmanifest', 'icons', 'vendor'];
+const FILES = ['index.html', 'space.html', 'src', 'manifest.webmanifest', 'icons', 'vendor'];
 
 await rm('www', { recursive: true, force: true });
 await mkdir('www');
