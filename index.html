@@ -2490,6 +2490,21 @@ function renderDiary() {
     <div class="li"><span>${d.mood} ${esc(d.note || '')}<small>${esc(d.date)}</small></span><button class="del" type="button" data-diarydel="${d.id}" aria-label="删除">✕</button></div>`).join('');
 }
 
+// ChatGPT 导出里 content.parts 的元素有两种：老格式是字符串，新格式（以及
+// Codex 那边）是 { content_type:'text', text:'…' } 这样的对象。只认字符串的话，
+// 助手那几条会被整条丢掉，导进来就只剩自己说的话。
+function gptText(content) {
+  if (!content) return '';
+  const one = x => {
+    if (typeof x === 'string') return x;
+    if (x && typeof x === 'object' && typeof x.text === 'string') return x.text;
+    return '';
+  };
+  if (Array.isArray(content.parts)) return content.parts.map(one).filter(Boolean).join('\n');
+  // 没有 parts 的纯文本节点（有的 content_type 只带 text）
+  if (content.content_type === 'text' && typeof content.text === 'string') return content.text;
+  return '';
+}
 function parseExport(json) {
   const arr = Array.isArray(json) ? json : (json.conversations || []);
   const out = [];
@@ -2507,8 +2522,8 @@ function parseExport(json) {
       while (id && c.mapping[id] && !seen.has(id)) {
         seen.add(id);
         const n = c.mapping[id], m = n.message, role = m?.author?.role;
-        if (role === 'user' || role === 'assistant') {
-          const text = (m.content?.parts || []).filter(x => typeof x === 'string').join('\n');
+        if ((role === 'user' || role === 'assistant') && !m.metadata?.is_visually_hidden_from_conversation) {
+          const text = gptText(m.content);
           if (text.trim()) messages.unshift({ role, content: text });
         }
         id = n.parent;
