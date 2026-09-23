@@ -1,0 +1,23 @@
+{
+  "name": "zhiyan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "一个装在手机桌面上的 AI 陪伴 App。网页版（PWA）不用服务器、不用编译；也可以用 Capacitor 打包成安卓 APK。",
+  "scripts": {
+    "build": "node build-app.mjs",
+    "sync": "npm run build && cap sync android",
+    "apk": "npm run sync && cd android && ./gradlew assembleDebug",
+    "open": "npm run sync && cap open android"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guoyuanjing540-wq/-ai.git"
+  },
+  "license": "MIT",
+  "homepage": "https://guoyuanjing540-wq.github.io/-ai/",
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  }
+}
