@@ -731,7 +731,8 @@
     <label class="field">API Key
       <div class="row"><input class="plain" id="fKey" type="password" autocomplete="off" style="flex:1"><button class="btn" type="button" id="showKey">显示</button></div>
     </label>
-    <label class="field">模型<input id="fModel" list="modelList"><datalist id="modelList"></datalist></label>
+    <label class="field">模型<select id="fModelSel"></select></label>
+    <label class="field" id="fModelCustom" hidden>模型名<input id="fModel" placeholder="照着供应商文档填"></label>
     <label class="field">接口地址（一般不用改；连不上时换成自己的转发地址）<input id="fBase"></label>
     <label class="field">额外要求（可不填）<textarea id="fSys" placeholder="例如：回复短一点。"></textarea></label>
     <label class="toggle"><span>参考记忆<small>每次聊天都带上"记忆"里的内容</small></span><input type="checkbox" id="fMem"></label>
@@ -776,7 +777,7 @@ const RENDER_LIMIT = 150;
 
 const PROVIDERS = {
   deepseek: { name: 'DeepSeek', kind: 'openai', base: 'https://api.deepseek.com', models: ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-chat', 'deepseek-reasoner'] },
-  claude:   { name: 'Claude',   kind: 'anthropic', base: 'https://api.anthropic.com', models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'] },
+  claude:   { name: 'Claude',   kind: 'anthropic', base: 'https://api.anthropic.com', models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5', 'claude-opus-4-8', 'claude-sonnet-4-6'] },
   openai:   { name: 'OpenAI',   kind: 'openai', base: 'https://api.openai.com/v1', models: ['gpt-5.1', 'gpt-5', 'gpt-5-mini', 'gpt-4.1', 'gpt-4o', 'gpt-4o-mini'] },
   glm:      { name: '智谱 GLM', kind: 'openai', base: 'https://open.bigmodel.cn/api/paas/v4', models: ['glm-5.2', 'glm-5.1', 'glm-5-turbo', 'glm-4.7-flash'] },
 };
@@ -1724,8 +1725,7 @@ function fillSettings(p) {
     `<button type="button" data-prov="${k}" class="${k === p ? 'on' : ''}">${esc(v.name)}<small>${configured[k] ? '已配置' : '未配置'}</small></button>`).join('');
   $('fKey').value = ''; $('fKey').type = 'password'; $('showKey').textContent = '显示';
   $('fKey').placeholder = configured[p] ? '已保存；留空则不修改' : '在这里填 API Key';
-  $('fModel').value = model(p);
-  $('modelList').innerHTML = PROVIDERS[p].models.map(m => `<option value="${esc(m)}"></option>`).join('');
+  fillModels(p, model(p));
   $('fBase').value = settings.bases[p] || '';
   $('fBase').placeholder = PROVIDERS[p].base;
   $('fSys').value = settings.sys;
@@ -1733,6 +1733,14 @@ function fillSettings(p) {
   $('setStatus').textContent = '';
   fillImgKey();
   fillPush();
+}
+function fillModels(p, current) {
+  const custom = !PROVIDERS[p].models.includes(current);
+  $('fModelSel').innerHTML = PROVIDERS[p].models.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')
+    + '<option value="__custom__">自定义…</option>';
+  $('fModelSel').value = custom ? '__custom__' : current;
+  $('fModel').value = custom ? current : '';
+  $('fModelCustom').hidden = !custom;
 }
 async function fillImgKey() {
   const ip = $('fImg').value = settings.img || 'glm';
@@ -1745,7 +1753,8 @@ async function applySettings() {
   const k = $('fKey').value.trim();
   if (k) { await saveSecret(p, k); configured[p] = true; }
   settings.provider = p;
-  settings.models[p] = $('fModel').value.trim() || PROVIDERS[p].models[0];
+  const sel = $('fModelSel').value;
+  settings.models[p] = (sel === '__custom__' ? $('fModel').value.trim() : sel) || PROVIDERS[p].models[0];
   const b = $('fBase').value.trim();
   if (b) settings.bases[p] = b; else delete settings.bases[p];
   settings.sys = $('fSys').value;
@@ -2634,6 +2643,11 @@ $('pushTest').onclick = async () => {
 };
 $('fImg').addEventListener('change', () => { settings.img = $('fImg').value; fillImgKey(); });
 $('provSeg').addEventListener('click', e => { const b = e.target.closest('[data-prov]'); if (b) fillSettings(b.dataset.prov); });
+$('fModelSel').addEventListener('change', () => {
+  const custom = $('fModelSel').value === '__custom__';
+  $('fModelCustom').hidden = !custom;
+  if (custom) $('fModel').focus();
+});
 $('showKey').onclick = () => { const k = $('fKey'); k.type = k.type === 'password' ? 'text' : 'password'; $('showKey').textContent = k.type === 'password' ? '显示' : '隐藏'; };
 $('saveSet').onclick = async () => { await applySettings(); closeSheets(); toast('已保存'); };
 $('testBtn').onclick = testConnection;
