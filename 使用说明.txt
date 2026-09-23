@@ -11,7 +11,7 @@
 二、装到手机桌面
 - 安卓：用 Chrome 打开网址 → 右上角菜单 → 安装应用 / 添加到主屏幕
 - iPhone：用 Safari 打开网址 → 分享 → 添加到主屏幕
-（想要真正的 APK：用 Capacitor 或 PWABuilder.com 把这个网址打包即可）
+想要真正的 APK，仓库里已经配好了 Capacitor，见下面第九节。
 
 三、第一次打开
 自动弹出设置 → 选供应商 → 填 API Key → 点"测试连接" → 保存
@@ -74,3 +74,25 @@
 对话、记忆、日历、心愿、歌、Key 都只存在当前设备的浏览器里，不会上传到别处。
 开启"TA 主动找你"的通知后，TA 的设定、记忆、最近几条聊天、近三天的日程和聊天 Key 会同步到你自己的 Worker，用来替 TA 说话。
 换手机或清浏览器数据前，先在"记忆"里点"导出全部数据"做备份。
+
+九、打包成安卓 APK
+用的是 Capacitor：index.html 原样跑在 App 内置的网页容器里，网页版和 APK 共用同一份代码。
+不用上架、不花钱，打出来的 APK 直接发给人装就行。
+（iPhone 的 .ipa 要上架才能装到别人手机上，苹果开发者账号 99 美元一年，先不折腾。）
+
+需要先装好：
+- Node.js
+- Android Studio（装的时候会一并装上 Android SDK，编译要用）
+
+命令：
+   npm install                       第一次装依赖
+   npx cap add android               第一次生成 android/ 工程（仓库里已经有了，可跳过）
+   npm run apk                       打包，出来的文件在
+                                     android/app/build/outputs/apk/debug/app-debug.apk
+   npm run open                      想在 Android Studio 里改图标、权限之类时用
+
+改完 index.html 重新跑一次 npm run apk 就是新版 APK。
+注意：APK 里不走 Service Worker（资源本来就在本地），所以第七节那个版本号只管网页版，APK 不用改。
+
+暂时还没做的：APK 里的推送还是走网页那套（依赖谷歌服务）。
+要换成国内厂商推送（小米/华为/OPPO/vivo）得再装对应的 Capacitor 插件，是另一件事。

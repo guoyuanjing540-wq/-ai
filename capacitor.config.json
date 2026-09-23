@@ -1,0 +1,8 @@
+{
+  "appId": "com.zhiyan.app",
+  "appName": "知言",
+  "webDir": "www",
+  "android": {
+    "webContentsDebuggingEnabled": true
+  }
+}
