@@ -424,6 +424,16 @@
   .post .ph { aspect-ratio: 1; border-radius: 14px; background: linear-gradient(110deg, var(--ground) 30%, color-mix(in srgb, var(--accent) 16%, var(--ground)) 50%, var(--ground) 70%); background-size: 250% 100%; animation: shimmer 1.6s linear infinite; }
   .cmts { display: grid; gap: 4px; background: color-mix(in srgb, var(--muted) 8%, transparent); border-radius: 12px; padding: 8px 10px; font-size: 14px; }
   .cmts b { font-weight: 600; color: var(--accent); }
+  .cmts > div[data-replyto] { cursor: pointer; border-radius: 6px; }
+  .cmts > div[data-replyto]:hover { background: color-mix(in srgb, var(--muted) 10%, transparent); }
+  .post .likes { font-size: 13px; color: var(--muted); }
+  .post .likes b { color: var(--accent); font-weight: 500; }
+  .friends { margin: 0 0 14px; border: 1px solid var(--line); background: var(--card); border-radius: 16px; padding: 10px 14px; }
+  .friends summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+  .friends .fr { display: grid; grid-template-columns: 44px 1fr 1fr auto; gap: 6px; align-items: center; margin-top: 8px; }
+  .friends .fr input { min-width: 0; border: 1px solid var(--line); background: var(--ground); border-radius: 10px; padding: 6px 8px; font-size: 14px; }
+  .friends .fr button { border: 0; background: none; color: var(--muted); }
+  @media (max-width: 520px) { .friends .fr { grid-template-columns: 44px 1fr auto; } .friends .fr .ft { grid-column: 2 / -1; } }
   .cmt-in { display: flex; gap: 8px; }
   .cmt-in input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--ground); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
   .cd { border-radius: 20px; padding: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, var(--card)), var(--card)); border: 1px solid var(--line); display: grid; gap: 2px; margin-bottom: 12px; }
@@ -500,7 +510,13 @@
       <div class="page"><div class="page-in">
         <p class="eyebrow">Moments</p>
         <h1 id="feedTitle">TA 的动态</h1>
-        <p class="lead">你们各自的生活。你发的 TA 看得到，会来评论；TA 发的你也可以点赞、评论。</p>
+        <p class="lead">你们各自的生活。你发的 TA 看得到，会来评论；TA 发的你也可以点赞、评论。点一条评论可以直接回复它。</p>
+        <details class="friends" id="friendsBox">
+          <summary>好友 · <span id="friendsSum"></span></summary>
+          <label class="toggle" style="margin-top:10px"><span>让好友也发朋友圈、来评论<small>好友每天最多发 2 条；会用你聊天的 Key，配图用画图的 Key</small></span><input type="checkbox" id="friendsOn"></label>
+          <div id="friendList"></div>
+          <div class="row" style="margin-top:8px"><button class="btn" type="button" id="friendAdd">＋ 加一个好友</button><button class="btn" type="button" id="friendPost">让好友发一条</button></div>
+        </details>
         <div class="row" style="margin-bottom:14px"><button class="btn primary" type="button" id="feedNew">让 TA 发一条</button><button class="btn" type="button" id="feedMine">我也发一条</button><span class="status" id="feedStatus"></span></div>
         <div id="feedCompose" hidden style="margin-bottom:14px">
           <label class="field">说点什么<textarea id="feedText" maxlength="300" placeholder="此刻在想什么…"></textarea></label>
@@ -2469,7 +2485,7 @@ async function newPost(auto = false) {
 }
 // 回到 App 或打开动态页时：隔 8 小时以上、白天、今天少于 3 条，TA 就自己发一条
 // 自己发的动态不算进 TA 的配额，也不该点亮"TA 有新动态"的小红点
-const taPosts = () => moments.filter(p => p.who !== 'me');
+const taPosts = () => moments.filter(p => !p.who || p.who === 'ta');
 function maybeAutoPost() {
   const h = new Date().getHours();
   if (h < 8 || settings.autoPost === false) return;
@@ -2481,17 +2497,19 @@ function maybeAutoPost() {
 }
 function updateFeedDot() { const t = taPosts()[0]; $('feedDot').hidden = !(t && t.at > feedSeen && tab !== 'feed'); }
 function renderFeed() {
-  const name = esc(P().name || 'TA'), me = esc(P().nick || '我');
-  $('feedTitle').textContent = `${P().name || 'TA'} 的动态`;
+  $('feedTitle').textContent = friendsOn() ? '朋友圈' : `${P().name || 'TA'} 的动态`;
+  // 老数据的评论没有 to：TA 在自己帖子下的评论，当成是回复我
+  const toOf = (p, c) => c.to || (c.who === 'ta' && p.who !== 'me' && !p.who?.startsWith?.('f:') ? 'me' : '');
   $('feed').innerHTML = moments.length ? moments.map(p => `
     <article class="post">
-      <header><span class="av">${p.who === 'me' ? esc((P().nick || '我').slice(0, 1)) : avatarInner()}</span><span><b>${p.who === 'me' ? me : name}</b><small>${ago(p.at)}</small></span></header>
+      <header><span class="av">${whoAv(p.who || 'ta')}</span><span><b>${esc(whoName(p.who || 'ta'))}</b><small>${ago(p.at)}</small></span></header>
       <p>${esc(p.text)}</p>
       ${p.drawing ? '<div class="ph"></div>' : (p.pics || 0) > 1
         ? `<div class="pgrid${p.pics === 2 || p.pics === 4 ? ' two' : ''}">${Array.from({ length: p.pics }, (_, k) => `<img class="pic" data-postimg="${p.id}" data-k="${k}" alt="">`).join('')}</div>`
         : p.img ? `<img class="pic" data-postimg="${p.id}" alt="">` : ''}
       <div class="ops"><button type="button" data-like="${p.id}" class="${p.liked ? 'on' : ''}">${p.liked ? '♥ 喜欢' : '♡ 喜欢'}</button><button type="button" data-cmt="${p.id}">评论</button></div>
-      ${p.comments.length ? `<div class="cmts">${p.comments.map(c => `<div><b>${c.who === 'me' ? me : name}</b>${c.who === 'ta' && p.who !== 'me' ? ` 回复 ${me}` : ''}：${esc(c.text)}</div>`).join('')}</div>` : ''}
+      ${p.likes?.length ? `<div class="likes">♥ ${p.likes.map(w => `<b>${esc(whoName(w))}</b>`).join('、')}</div>` : ''}
+      ${p.comments.length ? `<div class="cmts">${p.comments.map((c, k) => `<div${c.who !== 'me' ? ` data-replyto="${p.id}" data-k="${k}"` : ''}><b>${esc(whoName(c.who))}</b>${toOf(p, c) ? ` 回复 <b>${esc(whoName(toOf(p, c)))}</b>` : ''}：${esc(c.text)}</div>`).join('')}</div>` : ''}
       <div class="cmt-in" data-cmtbox="${p.id}" hidden><input maxlength="100" placeholder="说点什么…" aria-label="评论"><button class="btn primary" type="button" data-cmtsend="${p.id}">发送</button></div>
     </article>`).join('') : `<div class="empty"><i>◎</i><b>还没有动态</b>点上面的按钮，看看 TA 今天在干嘛</div>`;
   $('feed').querySelectorAll('img[data-postimg]').forEach(async img => {
@@ -2501,6 +2519,88 @@ function renderFeed() {
     img.src = blob ? URL.createObjectURL(blob) : (k ? '' : p.url || '');
   });
 }
+// ---- 好友（其他 AI）----
+// 帖子作者 / 评论者统一用 who 表示：'me' 我，'ta' 或空 是 TA，'f:<id>' 是某个好友
+const DEFAULT_FRIENDS = [
+  { id: 'xiaoman', name: '小满', emoji: '🍳', traits: '爱做饭，周末逛菜市场，说话温温柔柔的，爱分享吃的' },
+  { id: 'ajie', name: '阿杰', emoji: '🏔', traits: '在外地跑项目，话不多，爱拍路上的风景和天空' },
+  { id: 'chengzi', name: '橙子', emoji: '🍊', traits: '嘴毒心软，爱吐槽，追剧追综艺，评论区的气氛组' },
+];
+const friends = () => settings.friends || DEFAULT_FRIENDS;
+const friendsOn = () => settings.friendsOn !== false && friends().length > 0;
+const friendOf = w => typeof w === 'string' && w.startsWith('f:') ? friends().find(f => f.id === w.slice(2)) : null;
+function whoName(w) {
+  if (w === 'me') return P().nick || '我';
+  const f = friendOf(w);
+  if (f) return f.name;
+  if (w && w.startsWith?.('f:')) return '已删除的好友';
+  return P().name || 'TA';
+}
+function whoAv(w) {
+  if (w === 'me') return esc((P().nick || '我').slice(0, 1));
+  if (w && w.startsWith?.('f:')) return esc(friendOf(w)?.emoji || '·');
+  return avatarInner();
+}
+function friendSystem(f) {
+  const now = new Date(), nick = P().nick || '对方';
+  return [`你是${f.name}，${f.traits}。你是${nick}的网友，平时在朋友圈里互相点赞评论，关系不错但不算特别亲密。${nick}的${P().rel || '伴侣'}叫${P().name || '阿言'}，你也认识。`,
+    '说话像真人发朋友圈、回评论：口语、简短、有自己的性格，不要客套，不要自称 AI。',
+    `现在是 ${ymd(now)} 周${WEEK[now.getDay()]} ${pad(now.getHours())}:${pad(now.getMinutes())}。`].join('\n');
+}
+// 回复评论时，用谁的口吻、知道哪些背景
+function voiceOf(w) {
+  const f = friendOf(w);
+  return f ? friendSystem(f) : feedSystem();
+}
+const friendPostsToday = () => moments.filter(p => p.who?.startsWith?.('f:') && ymd(new Date(p.at)) === ymd(new Date())).length;
+let friendBusy = false;
+async function friendPost(f, auto = false) {
+  if (friendBusy || !f) return;
+  if (!(await loadSecret(settings.provider))) { if (!auto) toast('先填 API Key'); return; }
+  friendBusy = true;
+  if (!auto) $('feedStatus').textContent = `${f.name} 正在写…`;
+  try {
+    const withImg = imgReady && Math.random() < 0.6;
+    let text = await complete(friendSystem(f), `发一条朋友圈，分享你此刻的生活：看到的、吃到的、遇到的事、小心情。第一人称，1～3 句，符合你的性格，要和现在的时间对得上，可以带一个 emoji。不要加引号和话题标签。${withImg ? '最后加一个 [[画|配图的画面描述]]，画的是你此刻拍下的照片。' : ''}只输出动态内容。`);
+    const draw = text.match(/\[\[画\|([^\]]+)\]\]/);
+    text = stripTags(text).replace(/^["“「]+|["”」]+$/g, '').trim();
+    if (!text) throw new Error(`${f.name} 没想好写什么`);
+    const post = { id: uid(), at: Date.now(), who: 'f:' + f.id, text, liked: false, comments: [] };
+    if (Math.random() < 0.5) post.likes = ['ta'];
+    moments.unshift(post); moments = moments.slice(0, 200);
+    await DB.set('moments', moments); renderFeed();
+    if (draw) {
+      post.drawing = true; renderFeed();
+      try {
+        const out = await drawImage(draw[1]);
+        if (typeof out === 'string') post.url = out; else await DB.set('img:' + post.id, out);
+        post.img = true;
+      } catch {}
+      delete post.drawing;
+      await DB.set('moments', moments); renderFeed();
+    }
+    $('feedStatus').textContent = '';
+  } catch (e) {
+    if (!auto) $('feedStatus').textContent = e.message.split('\n')[0];
+  } finally { friendBusy = false; }
+}
+// 打开动态页时：白天、今天好友动态少于 2 条、离上一条好友动态超过 4 小时，就随机一个好友发一条
+function maybeFriendPost() {
+  const h = new Date().getHours();
+  if (!friendsOn() || h < 9 || h >= 23 || friendPostsToday() >= 2) return;
+  const last = moments.find(p => p.who?.startsWith?.('f:'));
+  if (last && Date.now() - last.at < 4 * 36e5) return;
+  const list = friends();
+  friendPost(list[Math.floor(Math.random() * list.length)], true);
+}
+function renderFriends() {
+  const list = friends();
+  $('friendsOn').checked = settings.friendsOn !== false;
+  $('friendsSum').textContent = list.length ? list.map(f => f.emoji + f.name).join(' ') : '还没有';
+  $('friendList').innerHTML = list.map((f, i) => `<div class="fr"><input data-fe="${i}" value="${esc(f.emoji)}" maxlength="2" aria-label="头像 emoji"><input data-fn="${i}" value="${esc(f.name)}" maxlength="8" aria-label="名字"><input class="ft" data-ft="${i}" value="${esc(f.traits)}" maxlength="60" aria-label="性格"><button type="button" data-fdel="${i}" aria-label="删除好友">✕</button></div>`).join('');
+}
+async function saveFriends(list) { settings.friends = list; await saveSettings(); renderFriends(); renderFeed(); }
+
 // ---- 我也发一条 ----
 // 第一张沿用老的键 img:<id>，老帖子不用迁移；第二张起是 img:<id>:1、img:<id>:2…
 const MAX_POST_PICS = 9;
@@ -2555,17 +2655,43 @@ async function taReplyToMine(p) {
     if (reply) { p.comments.push({ who: 'ta', text: reply, at: Date.now() }); await DB.set('moments', moments); renderFeed(); }
   } catch { /* 静默 */ }
   $('feedStatus').textContent = '';
+  friendsReactToMine(p);
 }
-async function commentPost(id, text) {
+// to：回复的是哪条评论的作者。没有 to 时：别人的帖子由帖主来回；我自己的帖子由 TA 来回。
+// 以前这里默认"你发了一条动态"，在我自己的帖子下回 TA 时，TA 会以为那是它发的。
+async function commentPost(id, text, to = '') {
   const p = moments.find(x => x.id === id); if (!p) return;
-  p.comments.push({ who: 'me', text, at: Date.now() });
+  const author = p.who || 'ta';
+  if (to === 'me') to = '';
+  p.comments.push({ who: 'me', text, at: Date.now(), ...(to ? { to } : {}) });
   await DB.set('moments', moments); renderFeed();
+  const replier = to || (author === 'me' ? 'ta' : author);
+  if (replier.startsWith('f:') && !friendOf(replier)) return; // 好友已经删了
   try {
     const nick = P().nick || '对方';
-    const thread = p.comments.map(c => `${c.who === 'me' ? nick : '你'}：${c.text}`).join('\n');
-    const reply = stripTags(await complete(feedSystem() + `\n\n你发了一条动态：「${p.text}」`, `评论区：\n${thread}\n\n${nick}刚评论：「${text}」。像在朋友圈里回复评论一样回一句，简短自然。只输出回复内容。`)).replace(/^["“「]+|["”」]+$/g, '').trim();
-    if (reply) { p.comments.push({ who: 'ta', text: reply, at: Date.now() }); await DB.set('moments', moments); renderFeed(); }
+    const self = w => w === replier ? '你' : whoName(w);
+    const thread = p.comments.map(c => `${c.who === 'me' ? nick : self(c.who)}${c.to ? ` 回复 ${c.to === 'me' ? nick : self(c.to)}` : ''}：${c.text}`).join('\n');
+    const whose = author === replier ? '你发了一条动态' : `${author === 'me' ? nick : whoName(author)}发了一条动态`;
+    const reply = stripTags(await complete(voiceOf(replier) + `\n\n${whose}：「${p.text || '（只有照片）'}」`,
+      `评论区：\n${thread}\n\n${nick}刚${to ? '回复你' : '评论'}：「${text}」。像在朋友圈里回复评论一样回${nick}一句，简短自然，符合你的性格。只输出回复内容。`)).replace(/^["“「]+|["”」]+$/g, '').trim();
+    if (reply) { p.comments.push({ who: replier, to: 'me', text: reply, at: Date.now() }); await DB.set('moments', moments); renderFeed(); }
   } catch (e) { toast(e.message.split('\n')[0]); }
+}
+// 我发的动态：TA 评论之后，再随机一个好友来凑热闹（点赞 + 一句评论，看不到图就不假装）
+async function friendsReactToMine(p) {
+  if (!friendsOn()) return;
+  const list = friends();
+  p.likes = [...new Set([...(p.likes || []), 'ta', ...list.filter(() => Math.random() < 0.5).map(f => 'f:' + f.id)])];
+  await DB.set('moments', moments); renderFeed();
+  const f = list[Math.floor(Math.random() * list.length)];
+  try {
+    const nick = P().nick || '对方';
+    const n = p.img ? (p.pics || 1) : 0;
+    const said = p.text ? `「${p.text}」` : '（没配文字）';
+    const reply = stripTags(await complete(friendSystem(f), `${nick}刚发了一条朋友圈：${said}${n ? `，配了 ${n} 张照片（你看不到照片内容，别描述照片）` : ''}。给它评论一句，简短、符合你的性格。只输出评论内容。`))
+      .replace(/^["“「]+|["”」]+$/g, '').trim();
+    if (reply) { p.comments.push({ who: 'f:' + f.id, text: reply, at: Date.now() }); await DB.set('moments', moments); renderFeed(); }
+  } catch { /* 静默 */ }
 }
 
 // ---- TA 的小金库 ----
@@ -2627,7 +2753,7 @@ function showTab(t) {
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
   if (t === 'mem') { renderMemories(); renderRecall(); }
-  else if (t === 'feed') { renderFeed(); feedSeen = Date.now(); DB.set('feedSeen', feedSeen).catch(() => {}); updateFeedDot(); maybeAutoPost(); }
+  else if (t === 'feed') { renderFeed(); renderFriends(); feedSeen = Date.now(); DB.set('feedSeen', feedSeen).catch(() => {}); updateFeedDot(); maybeAutoPost(); maybeFriendPost(); }
   else if (t === 'life') renderLife();
   else if (t === 'me') renderMe();
 }
@@ -2891,10 +3017,38 @@ $('feed').addEventListener('click', async e => {
     return;
   }
   const cm = e.target.closest('[data-cmt]');
-  if (cm) { const box = $('feed').querySelector(`[data-cmtbox="${cm.dataset.cmt}"]`); box.hidden = !box.hidden; if (!box.hidden) box.querySelector('input').focus(); return; }
+  if (cm) { openCmtBox(cm.dataset.cmt, '', true); return; }
+  const rt = e.target.closest('[data-replyto]');
+  if (rt) { const p = moments.find(x => x.id === rt.dataset.replyto); const c = p?.comments[+rt.dataset.k]; if (c) openCmtBox(p.id, c.who); return; }
   const cs = e.target.closest('[data-cmtsend]');
-  if (cs) { const inp = cs.parentElement.querySelector('input'); const t = inp.value.trim(); if (t) commentPost(cs.dataset.cmtsend, t); }
+  if (cs) { const box = cs.parentElement, inp = box.querySelector('input'); const t = inp.value.trim(); if (t) commentPost(cs.dataset.cmtsend, t, box.dataset.to || ''); }
 });
+function openCmtBox(id, to, toggle = false) {
+  const box = $('feed').querySelector(`[data-cmtbox="${id}"]`); if (!box) return;
+  const same = (box.dataset.to || '') === (to || '');
+  box.hidden = toggle && same ? !box.hidden : false;
+  box.dataset.to = to || '';
+  const inp = box.querySelector('input');
+  inp.placeholder = to ? `回复 ${whoName(to)}…` : '说点什么…';
+  if (!box.hidden) inp.focus();
+}
+$('friendsOn').onchange = async e => { settings.friendsOn = e.target.checked; await saveSettings(); renderFeed(); };
+$('friendList').addEventListener('change', e => {
+  const list = friends().map(f => ({ ...f }));
+  const t = e.target, i = +(t.dataset.fe ?? t.dataset.fn ?? t.dataset.ft);
+  if (!list[i]) return;
+  if (t.dataset.fe !== undefined) list[i].emoji = t.value.trim() || '🙂';
+  if (t.dataset.fn !== undefined) list[i].name = t.value.trim() || list[i].name;
+  if (t.dataset.ft !== undefined) list[i].traits = t.value.trim() || list[i].traits;
+  saveFriends(list);
+});
+$('friendList').addEventListener('click', e => {
+  const d = e.target.closest('[data-fdel]'); if (!d) return;
+  const list = friends().filter((_, i) => i !== +d.dataset.fdel);
+  if (confirm('删掉这个好友？TA 发过的动态会留着。')) saveFriends(list);
+});
+$('friendAdd').onclick = () => { if (friends().length >= 8) { toast('最多 8 个好友'); return; } saveFriends([...friends(), { id: uid(), name: '新朋友', emoji: '🙂', traits: '随和，爱分享日常' }]); };
+$('friendPost').onclick = () => { const list = friends(); if (!list.length) { toast('先加一个好友'); return; } friendPost(list[Math.floor(Math.random() * list.length)]); };
 $('feed').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.closest('.cmt-in')) { e.preventDefault(); e.target.nextElementSibling.click(); } });
 document.addEventListener('click', e => {
   const im = e.target.closest('img[data-zoom], img[data-img], .album img, .post .pic');
