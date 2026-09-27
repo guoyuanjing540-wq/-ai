@@ -270,7 +270,9 @@ function makeSlots(n, from, to) {
 }
 
 // ---------- 定时任务（每 10 分钟，每个用户各跑一遍） ----------
-const MIN_GAP = 3 * HOUR;          // 两条主动消息之间至少隔这么久
+// 两条主动消息之间至少隔多久：按"时间段长度 ÷ 每天几次"的一半算，夹在 40 分钟到 3 小时之间。
+// 一天 2 次大约隔 3 小时，一天 12 次（09:00–22:30）大约隔 40 分钟
+const minGap = (from, to, perDay) => Math.max(40 * MIN, Math.min(3 * HOUR, ((to - from) / Math.max(1, perDay)) * MIN / 2));
 const QUIET_AFTER_CHAT = 90 * MIN; // 刚聊完这么久之内不打扰
 const SLOT_GRACE = 60;             // 预定时刻过了这么多分钟还没发出去，这一次就算了
 
@@ -283,7 +285,7 @@ async function tick(env, user) {
   const L = localNow(cfg);
   const cred = await loadCred(env, user);
   const from = toMin(cfg.from || '09:00'), to = toMin(cfg.to || '22:30');
-  const perDay = Math.max(0, Math.min(6, +cfg.perDay || 0));
+  const perDay = Math.max(0, Math.min(12, +cfg.perDay || 0));
 
   if (run.plan?.date !== L.date) {
     run.plan = { date: L.date, slots: makeSlots(perDay, from, to), done: [] };
@@ -313,11 +315,12 @@ async function tick(env, user) {
     const devices = await listDevices(env, user);
     const lastActive = Math.max(0, ...devices.map(x => x.lastActive || 0));
     const inbox = await env.ZY.get(K.inbox, 'json') || [];
-    // 上一条主动消息还没有任何一台设备看过，就别再叠一条
-    const unread = inbox.some(i => i.kind === 'miss' && Date.now() - i.at < 12 * HOUR && !devices.some(x => x.acked?.includes(i.id)));
+    // 还没有任何一台设备看过的主动消息攒多了，就别再叠：一天几次以内按 1 条算，次数多的放宽到每 3 次允许 1 条没看
+    const unseen = inbox.filter(i => i.kind === 'miss' && Date.now() - i.at < 12 * HOUR && !devices.some(x => x.acked?.includes(i.id))).length;
+    const unread = unseen >= Math.max(1, Math.floor(perDay / 3));
     const skip = !cred || L.min - p.slots[due] > SLOT_GRACE || (run.sent || 0) >= perDay || L.min < from || L.min > to || unread;
     // 刚聊完 / 离上一条太近：先不作废，下一轮再看，过了宽限时间自然作废
-    const wait = Date.now() - lastActive < QUIET_AFTER_CHAT || Date.now() - (run.lastMiss || 0) < MIN_GAP;
+    const wait = Date.now() - lastActive < QUIET_AFTER_CHAT || Date.now() - (run.lastMiss || 0) < minGap(from, to, perDay);
     if (skip) p.done.push(due);
     else if (!wait) {
       p.done.push(due);
