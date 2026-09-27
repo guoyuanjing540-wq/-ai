@@ -523,8 +523,8 @@
         <div class="memrow"><input id="memInput" maxlength="200" placeholder="例如：我住在杭州，喜欢猫" aria-label="新的记忆"><button class="btn primary" type="button" id="memAdd">记住</button></div>
         <div class="stack" id="memList"></div>
         <h2>导入与备份</h2>
-        <p class="note">支持 Claude 或 ChatGPT 官方导出的 conversations.json，导入后出现在聊天记录里。</p>
-        <div class="row" style="margin-top:10px"><button class="btn" type="button" id="importPick">导入聊天记录</button><input type="file" id="importFile" accept=".json,application/json" hidden><button class="btn" type="button" id="exportBtn">导出全部数据</button><button class="btn danger" type="button" id="memClear">清空记忆</button></div>
+        <p class="note">「导出全部数据」会存一个备份文件，照片、TA 画的图、音乐都在里面（API Key 不在）。换手机时用「导入 / 恢复备份」选它就能全部恢复。<br>也支持 Claude 或 ChatGPT 官方导出的 conversations.json，导入后出现在聊天记录里。</p>
+        <div class="row" style="margin-top:10px"><button class="btn" type="button" id="importPick">导入 / 恢复备份</button><input type="file" id="importFile" accept=".json,application/json" hidden><button class="btn" type="button" id="exportBtn">导出全部数据</button><button class="btn danger" type="button" id="memClear">清空记忆</button></div>
         <span class="status" id="importStatus"></span>
         <p class="foot-note">🔒 记忆只存在这台手机上，删除权永远在你手里。</p>
       </div></div>
@@ -868,6 +868,17 @@ const DB = (() => {
     get: (k, s = 'kv') => run(s, 'readonly', st => st.get(k)),
     set: (k, v, s = 'kv') => run(s, 'readwrite', st => st.put(v, k)),
     del: (k, s = 'kv') => run(s, 'readwrite', st => st.delete(k)),
+    // 整个库一次读出来 / 清空，给备份和恢复用
+    entries: async (s = 'kv') => {
+      const db = await open();
+      return new Promise((res, rej) => {
+        const out = [], t = db.transaction(s, 'readonly');
+        t.objectStore(s).openCursor().onsuccess = e => { const c = e.target.result; if (c) { out.push([c.key, c.value]); c.continue(); } };
+        t.oncomplete = () => res(out);
+        t.onerror = () => rej(t.error);
+      });
+    },
+    clear: (s = 'kv') => run(s, 'readwrite', st => st.clear()),
   };
 })();
 
@@ -2727,10 +2738,51 @@ function parseExport(json) {
   }
   return out;
 }
+async function restoreBackup(data) {
+  let kv = data.kv;
+  if (!kv) {
+    // 第 1 版备份：只有几样数据、没有图片，按字段拼回去
+    kv = {};
+    for (const k of ['memories', 'diary', 'events', 'wishes', 'songs', 'ledger', 'period', 'health', 'moments', 'wallet', 'firsts', 'album']) if (data[k] !== undefined) kv[k] = data[k];
+    if (data.persona) kv.settings = { ...settings, persona: data.persona };
+    const chats = Array.isArray(data.chats) ? data.chats.filter(c => c && c.id && Array.isArray(c.messages)) : [];
+    for (const c of chats) kv['chat:' + c.id] = c;
+    kv.chatIndex = chats.map(c => ({ id: c.id, title: c.title || '聊天', updated: Date.now(), source: c.source || '' }));
+  }
+  const keys = Object.keys(kv).filter(k => BACKUP_KEY.test(k) && !BACKUP_SKIP.has(k));
+  if (!keys.length) throw new Error('empty');
+  const nChat = keys.filter(k => k.startsWith('chat:')).length;
+  const nMem = Array.isArray(kv.memories) ? kv.memories.length : 0;
+  const when = data.exported ? new Date(data.exported).toLocaleString('zh-CN', { hour12: false }) : '不知道什么时候';
+  if (!confirm(`这是 ${when} 的知言备份：${nChat} 段聊天、${nMem} 条记忆。\n\n恢复会用备份替换这台手机上现在的数据。\nAPI Key 不在备份里，恢复后要重新填一次。\n\n确定恢复吗？`)) {
+    $('importStatus').textContent = '取消了，什么都没动。';
+    return;
+  }
+  $('importStatus').textContent = '正在恢复…';
+  // 先把要写的东西全部准备好（Blob 还原出来），准备好了再清空，免得半路出错把现有数据弄没了
+  const ready = [];
+  for (const k of keys) {
+    const v = kv[k];
+    ready.push([k, v && typeof v === 'object' && typeof v.__blob === 'string' ? await dataURLToBlob(v.__blob) : v]);
+  }
+  const keep = [];
+  for (const k of BACKUP_SKIP) { const v = await DB.get(k).catch(() => undefined); if (v !== undefined) keep.push([k, v]); }
+  await DB.clear();
+  for (const [k, v] of [...ready, ...keep]) await DB.set(k, v);
+  $('importStatus').textContent = '恢复好了，马上刷新…';
+  setTimeout(() => location.reload(), 600);
+}
 async function importFile(file) {
   $('importStatus').textContent = '正在读取…';
+  let json;
+  try { json = JSON.parse(await file.text()); } catch { $('importStatus').textContent = '这个文件读不了，不是 json。'; return; }
+  if (json?.app === '知言') {
+    try { await restoreBackup(json); }
+    catch { $('importStatus').textContent = '这个备份文件是空的，或者已经损坏了。'; }
+    return;
+  }
   try {
-    const convs = parseExport(JSON.parse(await file.text()));
+    const convs = parseExport(json);
     if (!convs.length) throw new Error('empty');
     const known = new Set(index.map(c => c.importKey).filter(Boolean));
     let added = 0;
@@ -2745,13 +2797,26 @@ async function importFile(file) {
     await saveIndex(); renderList();
     $('importStatus').textContent = added ? `导入了 ${added} 段聊天记录。` : '这些之前已经导入过了。';
   } catch {
-    $('importStatus').textContent = '没认出这个文件。请选 Claude 或 ChatGPT 官方导出的 conversations.json。';
+    $('importStatus').textContent = '没认出这个文件。请选知言的备份文件，或者 Claude / ChatGPT 官方导出的 conversations.json。';
   }
 }
+// ---- 备份与恢复 ----
+// 第 2 版备份：把本地库（kv）整个导出，图片、音乐这些 Blob 转成 data URL 一起带上。
+// 不带：API Key（在 secrets 库里，而且是用这台手机专属的密钥加密的，换了手机也解不开）；
+// 也不带只属于这台手机的东西（推送订阅、权限状态、上次打开时间）。
+const BACKUP_SKIP = new Set(['pushcfg', 'perm', 'lastActive']);
+const BACKUP_KEY = /^(chat:|img:|track:)[\w:.-]+$|^[a-zA-Z0-9]+$/;
+const dataURLToBlob = async u => (await fetch(u)).blob();
 async function exportAll() {
-  const chats = [];
-  for (const c of index) { const full = await DB.get('chat:' + c.id); if (full) chats.push(full); }
-  const data = { app: '知言', exported: new Date().toISOString(), persona: P(), memories, diary, events, wishes, songs, ledger, period, health, moments, wallet, firsts, album, chats };
+  toast('正在打包…');
+  const kv = {};
+  let pics = 0;
+  for (const [k, v] of await DB.entries()) {
+    if (BACKUP_SKIP.has(k)) continue;
+    if (v instanceof Blob) { kv[k] = { __blob: await blobToDataURL(v) }; pics++; }
+    else kv[k] = v;
+  }
+  const data = { app: '知言', v: 2, exported: new Date().toISOString(), chats: index.length, memories: memories.length, pics, kv };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
   a.download = `知言备份-${ymd(new Date())}.json`;
