@@ -817,9 +817,10 @@
       <label class="field">最早<input id="fPushFrom" type="time"></label>
       <label class="field">最晚<input id="fPushTo" type="time"></label>
     </div>
-    <div class="row"><button class="btn" type="button" id="pushOn">开启通知</button><button class="btn" type="button" id="pushTest">让 TA 现在发一条</button></div>
+    <label class="field">主动消息专用 Key（可选）<input id="fPushKey" type="password" autocomplete="off"></label>
+    <div class="row"><button class="btn" type="button" id="pushOn">开启通知</button><button class="btn" type="button" id="pushTest">让 TA 现在发一条</button><button class="btn" type="button" id="pushRevoke">从 Worker 删掉 Key</button></div>
     <span class="status" id="pushStatus"></span>
-    <p class="note">Key 加密保存在这台设备的浏览器里，只会发给你选的供应商（或你填的转发地址）。开启"TA 主动找你"的通知后，聊天用的 Key 也会同步到你自己的 Worker 上，让它能替 TA 说话。</p>
+    <p class="note">Key 加密保存在这台设备的浏览器里，只会发给你选的供应商（或你填的转发地址）。开启"TA 主动找你"后，Worker 要替 TA 说话，会收到一份 Key：它在 Worker 上加密存放，7 天没打开知言就自动删掉，也可以随时点"从 Worker 删掉 Key"。更稳妥的做法是在供应商后台单独建一个额度小的 Key 填在"专用 Key"里，出事了直接在后台作废它，不影响聊天用的 Key。</p>
     <div class="row"><button class="btn" type="button" id="testBtn">测试连接</button><button class="btn" type="button" id="balBtn">查余额</button><span class="status" id="setStatus"></span></div>
     <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="saveSet">保存</button></div>
   </div>
@@ -827,6 +828,36 @@
 
 <script>
 'use strict';
+// ═══════════════════════════════════════════════════════════════════════
+// 知言 · 代码地图（为以后把这个文件拆成多个文件做准备）
+// 下面按模块分区，每区开头有 ════ [模块名] ════ 的标记，搜方括号里的名字就能跳过去。
+// 拆文件时基本可以按区整块剪出去；"依赖"写的是这一区会用到的别区的东西。
+//
+//   [基础工具]    $、esc、uid、md、ymd、常量表（PROVIDERS、ACCENTS、LINKS）         依赖：无
+//   [DB / Crypto] DB（IndexedDB）、deviceKey / saveSecret / loadSecret（AES-GCM）   依赖：无
+//   [全局状态]    settings 和各份数据（memories、events、wallet……）                依赖：DB
+//   [Memory]      addMemory、memoryLines（封顶 + 去重）                             依赖：全局状态
+//   [UI]          提示、主题、头像、聊天列表、消息气泡、卡片                        依赖：全局状态
+//   [AI Provider] systemPrompt、buildContext、wire、streamChat（四家接口的差异都在这）依赖：全局状态、Memory、Life、Wallet 的上下文函数
+//   [状态操作]    applyTags：AI 输出的 [[标签]] → 改日程/记忆/钱包/账本，带幂等记录  依赖：全局状态、Memory、Wallet
+//   [Image]       画图、图片卡片                                                   依赖：DB、loadSecret
+//   [Push]        TA 主动找你：Worker 同步、收件箱、打开时先开口                     依赖：DB、loadSecret、Chat（runBot）
+//   [Chat]        send、regenerate、编辑、runBot（一轮对话的完整流程）、按键通话    依赖：AI Provider、状态操作、Image
+//   [设置面板]    各个弹出面板、设置的读写、测试连接、查余额                         依赖：DB / Crypto、Push
+//   [Life]        日历、音乐、心愿、天气、账单、经期、健康、2048                    依赖：全局状态
+//   [回忆]        第一次、相册、纪念日                                              依赖：全局状态
+//   [Feed]        TA 的动态、AI 好友、我发的动态                                    依赖：AI Provider（complete）
+//   [Wallet]      小金库：上下文、渲染、拆红包                                      依赖：全局状态、状态操作里的 cleanMoney / addMoney
+//   [备份导入]    导入聊天记录、整库备份与恢复                                      依赖：DB
+//   [事件绑定]    所有按钮、输入框的事件                                            依赖：以上全部
+//   [启动]        读库、初始化界面                                                  依赖：以上全部
+//
+// 约定：模块之间只通过函数互相调用；要改别的模块的数据，调用那个模块的函数（比如记忆一律走 addMemory），
+// 不直接改它的数组。钱包、账本只在 [状态操作] 和转账按钮里改，金额都要过 cleanMoney。
+// ═══════════════════════════════════════════════════════════════════════
+
+// ════════════════ [基础工具] ════════════════
+// 小工具函数和常量表
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -862,6 +893,8 @@ const link = (label, href) => `<a href="${esc(href)}" target="_blank" rel="noope
 const shopLinks = q => `<div class="links">${link('淘宝', LINKS.taobao(q))}${link('京东', LINKS.jd(q))}${link('小红书', LINKS.xhs(q))}</div>`;
 const songLinks = q => `<div class="links">${link('网易云音乐', LINKS.netease(q))}${link('QQ 音乐', LINKS.qq(q))}</div>`;
 
+// ════════════════ [DB / Crypto] ════════════════
+// IndexedDB 两个库：kv 放普通数据，secrets 放 API Key（用这台设备专属、不可导出的 AES-GCM 密钥加密）
 const DB = (() => {
   let p;
   const open = () => p ||= new Promise((res, rej) => {
@@ -923,6 +956,8 @@ async function loadSecret(name) {
   } catch { return ''; }
 }
 
+// ════════════════ [全局状态] ════════════════
+// 设置和各份数据都在这里声明，启动时从 DB 读进来
 const DEFAULT_PERSONA = { name: '阿言', rel: '恋人', nick: '', traits: '温柔、细心，有一点小幽默，会认真听你说话，偶尔也会撒娇。', since: '', avatar: '' };
 let settings = { provider: 'deepseek', models: {}, bases: {}, sys: '', memoryOn: true, diaryOn: true, speak: false, accent: 'apricot', glass: true, wallBlur: 12, img: 'glm', opener: true, push: { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' }, persona: { ...DEFAULT_PERSONA } };
 let index = [], memories = [], diary = [], events = [], wishes = [], songs = [], tracks = [], ledger = [];
@@ -938,6 +973,12 @@ const P = () => settings.persona;
 const model = (p = settings.provider) => settings.models[p] || PROVIDERS[p].models[0];
 const base = (p = settings.provider) => (settings.bases[p] || PROVIDERS[p].base).replace(/\/+$/, '');
 
+const saveSettings = () => DB.set('settings', settings);
+const saveIndex = () => DB.set('chatIndex', index);
+const saveChat = c => DB.set('chat:' + c.id, c);
+
+// ════════════════ [Memory] ════════════════
+// 记忆的增删都走这里
 // 记忆总量封顶，免得上下文越滚越长、越聊越贵。
 // MEM_USE 与 MEM_MAX 保持一致：记忆页列出多少条，TA 就知道多少条，
 // 否则用户会看着一条明明在列表里的记忆，纳闷 TA 为什么不记得。
@@ -952,10 +993,9 @@ function addMemory(text) {
   return true;
 }
 const memoryLines = (n = MEM_USE) => memories.slice(0, n).map(m => '- ' + m.text.slice(0, 100)).join('\n');
-const saveSettings = () => DB.set('settings', settings);
-const saveIndex = () => DB.set('chatIndex', index);
-const saveChat = c => DB.set('chat:' + c.id, c);
 
+// ════════════════ [UI] ════════════════
+// 通用界面：提示、主题、头像、聊天列表、消息气泡、卡片
 // 提示一条一条地出，不会叠在一起
 const toastQueue = [];
 let toastOn = false;
@@ -1312,6 +1352,8 @@ function touch(c) {
   index = [{ ...prev, id: c.id, title: c.title, updated: Date.now(), source: c.source || '' }, ...index.filter(x => x.id !== c.id)];
 }
 
+// ════════════════ [AI Provider] ════════════════
+// 拼系统提示、整理上下文、把消息转成各家接口的格式、流式读取回复
 function systemPrompt() {
   const p = P();
   const nick = p.nick || '你';
@@ -1466,104 +1508,163 @@ async function* streamChat({ provider, key, system, messages, signal }) {
   }
 }
 
+// ════════════════ [状态操作] ════════════════
+// AI 回复里的标签在这里变成真正的数据改动
+// ---- 状态操作：AI 输出里的 [[标签]] ----
+// 每个会改状态的标签算一次"操作"，操作号 = 这一轮的编号 + 标签类型 + 内容 + 同样内容在这条回复里是第几个。
+// 执行过的操作号记在 opLog 里：同一条回复被处理两遍、重新生成 / 编辑重发出同样的标签，都只执行一次，
+// 不会重复扣钱、重复记账、重复加状态。一条回复里真写了两个一样的标签（比如两笔一样的账），第几个不同，照常各记一笔。
+const OPLOG_MAX = 500;
+let opLog = [];
+const opDone = id => opLog.some(o => o.id === id);
+function opMark(id) { opLog.unshift({ id, at: Date.now() }); if (opLog.length > OPLOG_MAX) opLog.length = OPLOG_MAX; }
+// 金额一律在前端再过一遍：只认"¥30""30 元""1,200"这种干净的数字，取绝对值、两位小数、夹在 [0, 上限]，
+// 认不出来就是 0（不执行）。AI 写什么数都突破不了这里
+const MONEY_MAX = 1e6;
+function cleanMoney(x, max = MONEY_MAX) {
+  const t = String(x ?? '').replace(/[\s,，¥￥元块]/g, '');
+  const n = Math.abs(Number(t));
+  return t && !/e/i.test(t) && Number.isFinite(n) ? Math.min(max, Math.round(n * 100) / 100) : 0;
+}
+// 从小金库往外拿钱的（红包、礼物）写成负数就是写错了，直接不执行
+const negMoney = x => /^\s*-/.test(String(x ?? ''));
+const addMoney = (a, b) => (Math.round(a * 100) + Math.round(b * 100)) / 100;
+// 读出来的钱包先修一遍：余额不是正常数字就当 0，免得一笔坏数据让后面所有比较都失效
+function fixWallet(w) {
+  const ok = v => Number.isFinite(+v) && +v > 0 ? Math.round(+v * 100) / 100 : 0;
+  return { ...w, balance: ok(w.balance), received: ok(w.received), log: Array.isArray(w.log) ? w.log : [], gifts: Array.isArray(w.gifts) ? w.gifts : [] };
+}
+// 这一轮的编号：TA 回的是哪条用户消息。主动开口的没有用户消息，就用这条回复自己的编号
+function turnIdFor(bot) {
+  if (bot.proactive) return bot.id;
+  const msgs = chat?.messages || [];
+  for (let i = msgs.indexOf(bot) - 1; i >= 0; i--) if (msgs[i].role === 'user') return (msgs[i].id ||= uid());
+  return bot.id;
+}
+
 async function applyTags(bot) {
   const cards = [];
-  const changed = { events: false, wishes: false, songs: false, memories: false, ledger: false, health: false, wallet: false };
+  const changed = { events: false, wishes: false, songs: false, memories: false, ledger: false, health: false, wallet: false, ops: false };
+  bot.id ||= uid();
+  const turn = turnIdFor(bot);
+  const seen = new Map();
   for (const [, type, body] of (bot.content || '').matchAll(TAG_RE)) {
-    const f = body.split('|').map(x => x.trim());
-    if (type === '日程') {
-      const [date, time, ...rest] = f;
-      const title = rest.join('|') || (time && !/^\d{1,2}:\d{2}$/.test(time) ? time : '');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !title) continue;
-      const t = /^\d{1,2}:\d{2}$/.test(time || '') ? time.padStart(5, '0') : '';
-      const anniv = /纪念日|生日|周年/.test(title);
-      if (!events.some(e => e.date === date && e.title === title)) {
-        events.push({ id: uid(), date, time: t, title, anniv });
-        changed.events = true;
+    const norm = body.replace(/\s+/g, ' ').trim();
+    const n = seen.get(type + '|' + norm) || 0;
+    seen.set(type + '|' + norm, n + 1);
+    const op = `${turn}|${type}|${norm}#${n}`;
+    const dup = opDone(op);
+    // 一个标签写坏了只跳过它自己，不影响这条回复和其他标签
+    try {
+      const f = body.split('|').map(x => x.trim());
+      if (type === '日程') {
+        const [date, time, ...rest] = f;
+        const title = rest.join('|') || (time && !/^\d{1,2}:\d{2}$/.test(time) ? time : '');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !title) continue;
+        const t = /^\d{1,2}:\d{2}$/.test(time || '') ? time.padStart(5, '0') : '';
+        const anniv = /纪念日|生日|周年/.test(title);
+        if (!dup && !events.some(e => e.date === date && e.title === title)) {
+          events.push({ id: uid(), date, time: t, title, anniv });
+          changed.events = true;
+        }
+        cards.push({ type: 'event', date, time: t, title, anniv, op });
+        markFirst('event', `第一次一起记下的安排：${title}`);
+      } else if (type === '歌') {
+        const [name, artist = ''] = f;
+        if (!name) continue;
+        if (!dup && !songs.some(s => s.name === name && s.artist === artist)) {
+          songs.unshift({ id: uid(), name, artist, added: ymd(new Date()) });
+          songs = songs.slice(0, 100); changed.songs = true;
+        }
+        cards.push({ type: 'song', name, artist, op });
+        markFirst('song', `TA 第一次给你推荐歌：《${name}》`);
+      } else if (type === '心愿') {
+        const name = f[0];
+        if (!name) continue;
+        if (!dup && !wishes.some(w => w.name === name)) { wishes.unshift({ id: uid(), name, done: false, added: ymd(new Date()) }); changed.wishes = true; }
+        cards.push({ type: 'wish', name, op });
+      } else if (type === '小红书') {
+        if (f[0]) cards.push({ type: 'xhs', kw: f[0] });
+        continue;
+      } else if (type === '红包') {
+        // 动钱的操作执行过就连卡片也不再出，免得多一个能拆的红包
+        if (dup) continue;
+        if (negMoney(f[0])) continue;
+        const amount = Math.min(cleanMoney(f[0]), wallet.balance);
+        if (!(amount > 0)) continue;
+        wallet.balance = addMoney(wallet.balance, -amount);
+        wallet.log.unshift({ id: uid(), op, at: Date.now(), kind: 'hongbao', amount: -amount, note: (f[1] || '').slice(0, 30) });
+        changed.wallet = true;
+        cards.push({ type: 'hb', id: uid(), op, amount, wish: (f[1] || '').slice(0, 30), opened: false });
+      } else if (type === '礼物') {
+        if (dup) continue;
+        const name = (f[0] || '').slice(0, 30); if (!name) continue;
+        if (negMoney(f[1])) continue;
+        const price = cleanMoney(f[1]);
+        if (price > wallet.balance) continue;
+        wallet.balance = addMoney(wallet.balance, -price);
+        wallet.gifts.unshift({ id: uid(), op, name, price, at: Date.now() });
+        if (price) wallet.log.unshift({ id: uid(), op, at: Date.now(), kind: 'gift', amount: -price, note: name });
+        changed.wallet = true;
+        cards.push({ type: 'gift', name, price, op });
+        markFirst('gift', `第一次收到 TA 的礼物：${name}`);
+      } else if (type === '攒钱') {
+        if (dup) continue;
+        const name = (f[0] || '').trim();
+        const amount = cleanMoney(f[1]);
+        if (!name || !amount) continue;
+        let w = wishes.find(x => !x.done && (x.name === name || x.name.includes(name) || name.includes(x.name)));
+        if (!w) { w = { id: uid(), name, done: false, added: ymd(new Date()) }; wishes.unshift(w); }
+        const before = cleanMoney(w.saved || 0);
+        w.saved = addMoney(before, amount); changed.wishes = true;
+        const reached = w.price && before < w.price && w.saved >= w.price;
+        if (reached) markFirst('saved', `第一次一起攒够：${w.name}`);
+        cards.push({ type: 'save', name: w.name, amount, saved: w.saved, price: w.price || 0, op });
+      } else if (type === '记账') {
+        if (dup) continue;
+        let [kind = '', amt = '', cat = '', ...rest] = f;
+        if (!/^(支出|收入)$/.test(kind)) { rest.unshift(cat); cat = amt; amt = kind; kind = '支出'; }
+        const amount = cleanMoney(amt);
+        if (!amount) continue;
+        const t = kind === '收入' ? 'in' : 'out';
+        const e = { id: uid(), op, date: ymd(new Date()), type: t, amount, cat: CATS[t].includes(cat) ? cat : '其他', src: '', note: rest.join('|').slice(0, 40) || (CATS[t].includes(cat) ? '' : cat) };
+        ledger.unshift(e); changed.ledger = true;
+        cards.push({ ...e, kind: e.type, type: 'bill' });
+      } else if (type === '喝水') {
+        if (dup) continue;
+        const n = Math.max(1, Math.min(5, parseInt(f[0], 10) || 1));
+        const k = ymd(new Date());
+        health.water[k] = (health.water[k] || 0) + n; changed.health = true;
+        cards.push({ type: 'water', n: health.water[k], goal: health.goal, op });
+      } else if (type === '画') {
+        const prompt = f.join('|').slice(0, 800);
+        if (!prompt || !imgReady || cards.some(c => c.type === 'img')) continue;
+        cards.push({ type: 'img', id: uid(), prompt, status: 'new' });
+        continue;
+      } else if (type === '记住') {
+        const text = f.join('|').slice(0, 200);
+        if (!text) continue;
+        if (!dup && addMemory(text)) changed.memories = true;
+        cards.push({ type: 'mem', text, op });
       }
-      cards.push({ type: 'event', date, time: t, title, anniv });
-      markFirst('event', `第一次一起记下的安排：${title}`);
-    } else if (type === '歌') {
-      const [name, artist = ''] = f;
-      if (!name) continue;
-      if (!songs.some(s => s.name === name && s.artist === artist)) {
-        songs.unshift({ id: uid(), name, artist, added: ymd(new Date()) });
-        songs = songs.slice(0, 100); changed.songs = true;
-      }
-      cards.push({ type: 'song', name, artist });
-      markFirst('song', `TA 第一次给你推荐歌：《${name}》`);
-    } else if (type === '心愿') {
-      const name = f[0];
-      if (!name) continue;
-      if (!wishes.some(w => w.name === name)) { wishes.unshift({ id: uid(), name, done: false, added: ymd(new Date()) }); changed.wishes = true; }
-      cards.push({ type: 'wish', name });
-    } else if (type === '小红书') {
-      if (f[0]) cards.push({ type: 'xhs', kw: f[0] });
-    } else if (type === '红包') {
-      const want = Math.round(Math.abs(parseFloat(String(f[0] || '').replace(/[^\d.]/g, ''))) * 100) / 100;
-      const amount = Math.min(want || 0, wallet.balance);
-      if (!amount) continue;
-      wallet.balance = Math.round((wallet.balance - amount) * 100) / 100;
-      wallet.log.unshift({ id: uid(), at: Date.now(), kind: 'hongbao', amount: -amount, note: f[1] || '' });
-      changed.wallet = true;
-      cards.push({ type: 'hb', id: uid(), amount, wish: (f[1] || '').slice(0, 30), opened: false });
-    } else if (type === '礼物') {
-      const name = (f[0] || '').slice(0, 30); if (!name) continue;
-      const price = Math.round(Math.abs(parseFloat(String(f[1] || '0').replace(/[^\d.]/g, '')) || 0) * 100) / 100;
-      if (price > wallet.balance) continue;
-      wallet.balance = Math.round((wallet.balance - price) * 100) / 100;
-      wallet.gifts.unshift({ id: uid(), name, price, at: Date.now() });
-      if (price) wallet.log.unshift({ id: uid(), at: Date.now(), kind: 'gift', amount: -price, note: name });
-      changed.wallet = true;
-      cards.push({ type: 'gift', name, price });
-      markFirst('gift', `第一次收到 TA 的礼物：${name}`);
-    } else if (type === '攒钱') {
-      const name = (f[0] || '').trim();
-      const amount = Math.round(Math.abs(parseFloat(String(f[1] || '').replace(/[^\d.]/g, ''))) * 100) / 100;
-      if (!name || !amount) continue;
-      let w = wishes.find(x => !x.done && (x.name === name || x.name.includes(name) || name.includes(x.name)));
-      if (!w) { w = { id: uid(), name, done: false, added: ymd(new Date()) }; wishes.unshift(w); }
-      const before = w.saved || 0;
-      w.saved = Math.round((before + amount) * 100) / 100; changed.wishes = true;
-      const reached = w.price && before < w.price && w.saved >= w.price;
-      if (reached) markFirst('saved', `第一次一起攒够：${w.name}`);
-      cards.push({ type: 'save', name: w.name, amount, saved: w.saved, price: w.price || 0 });
-    } else if (type === '记账') {
-      let [kind = '', amt = '', cat = '', ...rest] = f;
-      if (!/^(支出|收入)$/.test(kind)) { rest.unshift(cat); cat = amt; amt = kind; kind = '支出'; }
-      const amount = Math.round(Math.abs(parseFloat(String(amt).replace(/[^\d.]/g, ''))) * 100) / 100;
-      if (!amount) continue;
-      const t = kind === '收入' ? 'in' : 'out';
-      const e = { id: uid(), date: ymd(new Date()), type: t, amount, cat: CATS[t].includes(cat) ? cat : '其他', src: '', note: rest.join('|').slice(0, 40) || (CATS[t].includes(cat) ? '' : cat) };
-      ledger.unshift(e); changed.ledger = true;
-      cards.push({ ...e, kind: e.type, type: 'bill' });
-    } else if (type === '喝水') {
-      const n = Math.max(1, Math.min(5, parseInt(f[0], 10) || 1));
-      const k = ymd(new Date());
-      health.water[k] = (health.water[k] || 0) + n; changed.health = true;
-      cards.push({ type: 'water', n: health.water[k], goal: health.goal });
-    } else if (type === '画') {
-      const prompt = f.join('|').slice(0, 800);
-      if (!prompt || !imgReady || cards.some(c => c.type === 'img')) continue;
-      cards.push({ type: 'img', id: uid(), prompt, status: 'new' });
-    } else if (type === '记住') {
-      const text = f.join('|').slice(0, 200);
-      if (!text) continue;
-      if (addMemory(text)) changed.memories = true;
-      cards.push({ type: 'mem', text });
+      if (!dup) { opMark(op); changed.ops = true; }
+    } catch (e) {
+      console.warn('标签没执行成功', type, e);
     }
   }
   bot.content = stripTags(bot.content);
   bot.cards = cards;
-  if (changed.events) await DB.set('events', events);
-  if (changed.songs) await DB.set('songs', songs);
-  if (changed.wishes) await DB.set('wishes', wishes);
-  if (changed.memories) await DB.set('memories', memories);
-  if (changed.ledger) await DB.set('ledger', ledger);
-  if (changed.wallet) await DB.set('wallet', wallet);
-  if (changed.health) await DB.set('health', health);
+  // 先存操作记录再存数据：万一中途存失败，宁可这一笔没记上，也不要下次再执行一遍
+  const writes = [['ops', 'opLog', () => opLog], ['events', 'events', () => events], ['songs', 'songs', () => songs], ['wishes', 'wishes', () => wishes],
+    ['memories', 'memories', () => memories], ['ledger', 'ledger', () => ledger], ['wallet', 'wallet', () => wallet], ['health', 'health', () => health]];
+  for (const [flag, key, val] of writes) {
+    if (!changed[flag]) continue;
+    try { await DB.set(key, val()); } catch { toast('手机存储出错，有些记录可能没存上'); }
+  }
 }
 
+// ════════════════ [Image] ════════════════
+// 画图和图片卡片
 async function imgKey(p) { return (await loadSecret('img-' + p)) || (await loadSecret(p)); }
 async function refreshImgReady() {
   imgReady = settings.img !== 'off' && !!(await imgKey(settings.img || 'glm'));
@@ -1631,6 +1732,8 @@ function hydrateImgs(root) {
   });
 }
 
+// ════════════════ [Push] ════════════════
+// TA 主动找你：和 Cloudflare Worker 同步、取收件箱、打开 App 时先开口
 // ---- TA 主动找你 ----
 const PUSH_DEFAULT = { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' };
 const PS = () => ({ ...PUSH_DEFAULT, ...(settings.push || {}) });
@@ -1639,6 +1742,8 @@ async function fillPush() {
   $('fOpener').checked = settings.opener !== false;
   $('fPushUrl').value = cfg.url || '';
   $('fPushPass').value = ''; $('fPushPass').placeholder = cfg.pass ? '已保存；留空则不修改' : '部署 Worker 时自己设的密码';
+  const own = await loadSecret('push-' + settings.provider);
+  $('fPushKey').value = ''; $('fPushKey').placeholder = own ? '已保存；留空则不修改' : `不填就用聊天的 Key（${PROVIDERS[settings.provider].name}）`;
   $('fPushPerDay').value = String(ps.perDay); $('fPushRemind').value = ps.remind ? '1' : '0';
   $('fPushFrom').value = ps.from; $('fPushTo').value = ps.to;
   $('pushStatus').textContent = ps.on ? '通知已开启' : '';
@@ -1651,14 +1756,33 @@ async function applyPush() {
   const url = $('fPushUrl').value.trim().replace(/\/+$/, '');
   const pass = $('fPushPass').value.trim();
   await DB.set('pushcfg', { url, pass: pass || cfg.pass || '' });
+  const own = $('fPushKey').value.trim();
+  if (own) await saveSecret('push-' + settings.provider, own);
   if (!url) settings.push.on = false;
+}
+// 这台设备在 Worker 上的编号：同一个人的几台手机各自订阅、各自确认消息，互不影响。不进备份
+async function deviceId() {
+  let d = await DB.get('deviceId').catch(() => '');
+  if (!d) { d = 'd' + uid() + Math.random().toString(36).slice(2, 10); await DB.set('deviceId', d).catch(() => {}); }
+  return d;
+}
+// 给 Worker 用的 Key：填了"主动消息专用 Key"就用它，否则用聊天的 Key。点过"从 Worker 删掉 Key"就不再上传
+async function pushKey(p = settings.provider) {
+  if (PS().keyOff) return '';
+  return (await loadSecret('push-' + p)) || (await loadSecret(p));
+}
+// Key 的指纹（哈希，推不回 Key 本身）：Worker 靠它判断手上那份是不是最新的，对不上才让手机重新上传，平时同步不带 Key
+async function keyFp(p, m, key) {
+  if (!hasCrypto) return '';
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${p}|${m}|${key}`)));
+  return [...h.slice(0, 16)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 async function pushFetch(path, opts = {}) {
   const cfg = await DB.get('pushcfg');
   if (!cfg?.url || !cfg?.pass) throw new Error('先填 Worker 地址和密码');
   let res;
   try {
-    res = await fetch(cfg.url + path, { ...opts, headers: { 'content-type': 'application/json', 'x-zy-pass': cfg.pass } });
+    res = await fetch(cfg.url + path + (path.includes('?') ? '&' : '?') + 'd=' + await deviceId(), { ...opts, headers: { 'content-type': 'application/json', 'x-zy-pass': cfg.pass } });
   } catch { throw new Error('连不上 Worker：检查地址，或者开着梯子再试'); }
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error || `Worker 返回了 ${res.status}`);
@@ -1672,21 +1796,35 @@ function personaBrief() {
   if (settings.memoryOn && memories.length) out.push(`你记得的关于${nick}的事：\n` + memoryLines(30));
   return out.join('\n');
 }
+// 同步给 Worker：平时只带 Key 的指纹；Worker 说没有 / 对不上（或者是还不认指纹的老版 Worker），才补传一次 Key
 async function syncPush(extra = {}, keepalive = false) {
   const cfg = await DB.get('pushcfg');
-  if (!cfg?.url || !cfg?.pass) return;
-  const ps = PS();
+  if (!cfg?.url || !cfg?.pass) return null;
+  const ps = PS(), provider = settings.provider, m = model();
+  const key = await pushKey(provider);
+  const fp = key ? await keyFp(provider, m, key) : '';
   const body = {
-    ai: { provider: settings.provider, model: model(), key: await loadSecret(settings.provider) },
     persona: personaBrief(), nick: P().nick || '你', name: P().name || '知言',
     events: upcoming(3).map(e => ({ on: e.on, time: e.time || '', title: e.title })),
+    mems: settings.memoryOn ? memories.slice(0, 8).map(x => x.text.slice(0, 80)) : [],
     perDay: ps.perDay, remind: ps.remind, from: ps.from, to: ps.to,
-    tz: -new Date().getTimezoneOffset(), lastActive: Date.now(), ...extra,
+    tz: -new Date().getTimezoneOffset(), lastActive: Date.now(), fp, ...extra,
   };
   const src = chat?.messages?.length ? chat : index[0] ? await DB.get('chat:' + index[0].id) : null;
-  if (src?.messages?.length) body.recent = normalize(src.messages).slice(-12).map(m => ({ r: m.role === 'user' ? 'u' : 'a', t: m.content.slice(0, 300) }));
-  const res = await fetch(cfg.url + '/sync', { method: 'POST', keepalive, headers: { 'content-type': 'application/json', 'x-zy-pass': cfg.pass }, body: JSON.stringify(body) });
-  if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `同步失败（${res.status}）`); }
+  if (src?.messages?.length) {
+    body.recent = normalize(src.messages).slice(-12).map(x => ({ r: x.role === 'user' ? 'u' : 'a', t: x.content.slice(0, 300) }));
+    body.recentAt = index.find(c => c.id === src.id)?.updated || Date.now();
+  }
+  const url = cfg.url + '/sync?d=' + await deviceId();
+  const post = async b => {
+    const res = await fetch(url, { method: 'POST', keepalive, headers: { 'content-type': 'application/json', 'x-zy-pass': cfg.pass }, body: JSON.stringify(b) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || `同步失败（${res.status}）`);
+    return j;
+  };
+  let r = await post(body);
+  if (key && (r.needKey || !r.v || !fp)) r = await post({ ...body, ai: { provider, model: m, key, fp } });
+  return r;
 }
 async function enablePush() {
   await applySettings();
@@ -1699,8 +1837,8 @@ async function enablePush() {
   const same = sub?.options?.applicationServerKey && btoa(String.fromCharCode(...new Uint8Array(sub.options.applicationServerKey))) === btoa(String.fromCharCode(...b64uBytes(key)));
   if (sub && !same) { await sub.unsubscribe(); sub = null; }
   sub ||= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(key) });
+  settings.push = { ...PS(), on: true, keyOff: false };
   await syncPush({ sub: sub.toJSON() });
-  settings.push = { ...PS(), on: true };
   await saveSettings();
 }
 let pulling = false;
@@ -1763,6 +1901,8 @@ document.addEventListener('visibilitychange', () => {
 });
 navigator.serviceWorker?.addEventListener('message', e => { if (e.data === 'inbox') pullInbox(); });
 
+// ════════════════ [Chat] ════════════════
+// 一轮对话：发送、重新生成、编辑重发、runBot；按键通话也在这一区
 async function send(text, imgs = [], extra = {}, { cutAt = -1 } = {}) {
   text = text.trim();
   if ((!text && !imgs.length) || controller) return;
@@ -1778,9 +1918,11 @@ async function send(text, imgs = [], extra = {}, { cutAt = -1 } = {}) {
     if (addMemory(remember[1])) await DB.set('memories', memories);
   }
 
+  // 编辑重发沿用原来那条的编号：同一轮里已经执行过的标签不会再执行一遍
+  const turnId = cutAt >= 0 && chat?.messages[cutAt]?.id || uid();
   if (cutAt >= 0 && chat) chat.messages.length = cutAt;
   if (!chat) { chat = { id: uid(), title: (text || '一张照片').slice(0, 24), messages: [] }; currentId = chat.id; }
-  chat.messages.push({ role: 'user', content: text, ...(imgs.length ? { imgs } : {}), ...extra });
+  chat.messages.push({ role: 'user', id: turnId, content: text, ...(imgs.length ? { imgs } : {}), ...extra });
   if (imgs.length && cutAt < 0) {
     for (const u of imgs) album.unshift({ id: uid(), kind: 'photo', data: u, at: Date.now(), cap: text.slice(0, 20) });
     DB.set('album', album).catch(() => toast('手机存储快满了，照片可能没存进相册'));
@@ -1855,13 +1997,25 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
   } finally {
     if (raf) cancelAnimationFrame(raf);
     controller = null;
-    await applyTags(bot);
+    try { await applyTags(bot); } catch (e) { console.warn(e); bot.content = stripTags(bot.content); bot.cards ||= []; }
     if (!bot.content && !bot.thinking && !bot.error && !bot.cards.length) bot.error = '已停止。';
-    await saveChat(chat);
-    node.innerHTML = botInner(bot, i, false);
-    addCopyButtons(node);
+    // TA 主动开口没成功（网络、额度……）：悄悄撤掉这条，不在聊天里留一条报错，也不挡着正常聊天
+    const dropped = proactive && !bot.content && !bot.cards.length;
+    if (dropped) {
+      const at = chat.messages.indexOf(bot);
+      if (at >= 0) chat.messages.splice(at, 1);
+      node.remove();
+      // 为这条新开的空聊天也一起撤掉
+      if (!chat.messages.length) {
+        index = index.filter(c => c.id !== chat.id); await saveIndex().catch(() => {});
+        await DB.del('chat:' + chat.id).catch(() => {});
+        chat = null; currentId = null; renderList(); renderShell();
+      }
+    }
+    if (chat) await saveChat(chat).catch(() => toast('手机存储出错，这条可能没存上'));
+    if (!dropped) { node.innerHTML = botInner(bot, i, false); addCopyButtons(node); }
     // 这一轮记了账，上面那条的"编辑"要收起来
-    if (touchesLedger(bot)) renderThread();
+    if (touchesLedger(bot) || dropped) renderThread();
     const c0 = chat;
     for (const card of bot.cards) if (card.type === 'img' && card.status === 'new') drawCard(c0, card);
     setBusy(false);
@@ -1927,6 +2081,8 @@ function speak(text) {
   speechSynthesis.speak(u);
 }
 
+// ════════════════ [设置面板] ════════════════
+// 弹出面板的开关，设置、人设、外观的读写
 function openSheet(id) {
   $('app').classList.remove('open');
   const fill = {
@@ -2081,6 +2237,8 @@ async function checkBalance() {
   }
 }
 
+// ════════════════ [Life] ════════════════
+// 生活页：日历、音乐、心愿、记忆列表、天气、账单、经期、健康、小游戏
 let calMonth = new Date(), calSel = ymd(new Date());
 function renderCal() {
   const y = calMonth.getFullYear(), m = calMonth.getMonth();
@@ -2377,6 +2535,8 @@ async function drawGame() {
 }
 
 
+// ════════════════ [回忆] ════════════════
+// 第一次、相册、纪念日倒数
 // ---- 回忆：第一次 / 相册 / 纪念日倒数 ----
 function markFirst(key, text) {
   if (firsts[key]) return;
@@ -2422,6 +2582,8 @@ function renderFirsts() {
   $('firstList').innerHTML = list.length ? list.map(f => `<div><b>${esc(f.text)}</b><small>${new Date(f.at).toLocaleDateString('zh-CN')}</small></div>`).join('') : '<p class="note">还没有。慢慢来，第一次都会记在这里。</p>';
 }
 
+// ════════════════ [Feed] ════════════════
+// 动态：TA 发的、AI 好友发的、我发的
 // ---- TA 的动态 ----
 let postBusy = false;
 function ago(at) {
@@ -2694,6 +2856,8 @@ async function friendsReactToMine(p) {
   } catch { /* 静默 */ }
 }
 
+// ════════════════ [Wallet] ════════════════
+// 小金库（真钱的记账）。改余额的地方只有 [状态操作] 和转账按钮
 // ---- TA 的小金库 ----
 function walletContext() {
   const out = [`你们有一个小金库，里面是对方真的存给你的钱，现在有 ¥${money(wallet.balance)}。对方给你转账（存钱）时，真心道谢，可以说说你打算怎么用。这是真钱，花的时候要有分寸，最好是让对方拿去犒劳自己。`];
@@ -2716,7 +2880,7 @@ function renderWallet() {
 async function openHongbao(id) {
   for (const m of chat?.messages || []) for (const c of m.cards || []) if (c.type === 'hb' && c.id === id && !c.opened) {
     c.opened = true;
-    wallet.received = Math.round((wallet.received + c.amount) * 100) / 100;
+    wallet.received = addMoney(wallet.received, cleanMoney(c.amount));
     await DB.set('wallet', wallet); await saveChat(chat);
     const el = document.querySelector(`[data-hb="${id}"]`); if (el) el.outerHTML = cardHTML(c);
     toast(`从小金库拿 ¥${money(c.amount)}，去犒劳一下自己吧`);
@@ -2730,6 +2894,8 @@ async function celebrate(w) {
   await send(`（我们一起攒的「${w.name}」攒够啦！¥${money(w.price)}）`, [], { evt: true });
 }
 
+// ════════════════ [UI] ════════════════
+// 照片、底部栏、各页渲染
 // ---- 照片 ----
 function photoURL(file) {
   return shrinkPhoto(file, 1280).then(b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); }));
@@ -2821,6 +2987,8 @@ function renderDiary() {
     <div class="li"><span>${d.mood} ${esc(d.note || '')}<small>${esc(d.date)}</small></span><button class="del" type="button" data-diarydel="${d.id}" aria-label="删除">✕</button></div>`).join('');
 }
 
+// ════════════════ [备份导入] ════════════════
+// 导入别家的聊天记录、知言自己的备份与恢复
 // ChatGPT 导出里 content.parts 的元素有两种：老格式是字符串，新格式（以及
 // Codex 那边）是 { content_type:'text', text:'…' } 这样的对象。只认字符串的话，
 // 助手那几条会被整条丢掉，导进来就只剩自己说的话。
@@ -2930,7 +3098,7 @@ async function importFile(file) {
 // 第 2 版备份：把本地库（kv）整个导出，图片、音乐这些 Blob 转成 data URL 一起带上。
 // 不带：API Key（在 secrets 库里，而且是用这台手机专属的密钥加密的，换了手机也解不开）；
 // 也不带只属于这台手机的东西（推送订阅、权限状态、上次打开时间）。
-const BACKUP_SKIP = new Set(['pushcfg', 'perm', 'lastActive']);
+const BACKUP_SKIP = new Set(['pushcfg', 'perm', 'lastActive', 'deviceId']);
 const BACKUP_KEY = /^(chat:|img:|track:)[\w:.-]+$|^[a-zA-Z0-9]+$/;
 const dataURLToBlob = async u => (await fetch(u)).blob();
 async function exportAll() {
@@ -2950,6 +3118,8 @@ async function exportAll() {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
+// ════════════════ [事件绑定] ════════════════
+// 所有按钮和输入框的事件；逻辑尽量放在上面各区的函数里，这里只做转发
 $('tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) showTab(b.dataset.tab); });
 $('installBtn').onclick = () => {
   if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) { toast('已经在桌面上啦'); return; }
@@ -2975,11 +3145,11 @@ $('photoFile').onchange = async e => {
 $('attach').addEventListener('click', e => { const b = e.target.closest('[data-unattach]'); if (b) { pendingImgs.splice(+b.dataset.unattach, 1); renderAttach(); } });
 $('xferQuick').addEventListener('click', e => { const b = e.target.closest('[data-amt]'); if (b) $('xferAmt').value = b.dataset.amt; });
 $('xferGo').onclick = async () => {
-  const amount = Math.round(Math.abs(parseFloat($('xferAmt').value)) * 100) / 100;
+  const amount = cleanMoney($('xferAmt').value);
   if (!amount) { toast('先填金额'); return; }
   if (!(await loadSecret(settings.provider))) { openSheet('setSheet'); toast('先填 API Key'); return; }
   const note = $('xferNote').value.trim();
-  wallet.balance = Math.round((wallet.balance + amount) * 100) / 100;
+  wallet.balance = addMoney(wallet.balance, amount);
   wallet.log.unshift({ id: uid(), at: Date.now(), kind: 'from_you', amount, note });
   await DB.set('wallet', wallet);
   markFirst('xfer', `第一次给 TA 转账 ¥${money(amount)}`);
@@ -3261,10 +3431,23 @@ $('pushOn').onclick = async () => {
   try { await enablePush(); $('pushStatus').textContent = '开好了。关掉 App 也能收到 TA 的消息'; $('pushOn').textContent = '重新连接'; }
   catch (e) { $('pushStatus').textContent = e.message; }
 };
+$('pushRevoke').onclick = async () => {
+  if (!confirm('从 Worker 上删掉 Key？\n\n删掉以后 TA 不会再主动发消息，日程提醒还会照常用固定的句子发。之后点"开启通知"就能恢复。')) return;
+  $('pushStatus').textContent = '正在删…';
+  try {
+    await pushFetch('/revoke', { method: 'POST' });
+    settings.push = { ...PS(), keyOff: true };
+    await saveSettings();
+    $('pushStatus').textContent = 'Worker 上的 Key 已经删掉了。';
+  } catch (e) {
+    $('pushStatus').textContent = /404/.test(e.message) ? 'Worker 还是旧版本，没有这个功能。按使用说明把 worker.js 更新一下再试。' : e.message;
+  }
+};
 $('pushTest').onclick = async () => {
   $('pushStatus').textContent = 'TA 在想说什么…';
   try {
     await applySettings();
+    if (PS().keyOff) throw new Error('Worker 上的 Key 已经删掉了，先点"开启通知"');
     await syncPush();
     const r = await pushFetch('/test', { method: 'POST' });
     $('pushStatus').textContent = r.pushed ? `发出去了：${r.text}` : `TA 说：${r.text}（${r.note || '还没开启通知，打开 App 时才能看到'}）`;
@@ -3379,6 +3562,8 @@ $('diaryList').addEventListener('click', async e => {
   diary = diary.filter(d => d.id !== b.dataset.diarydel); await DB.set('diary', diary); renderDiary();
 });
 
+// ════════════════ [启动] ════════════════
+// 读库、修正旧数据、初始化界面
 (async () => {
   try {
     const saved = await DB.get('settings') || {};
@@ -3397,7 +3582,8 @@ $('diaryList').addEventListener('click', async e => {
     firsts = await DB.get('firsts') || {};
     album = await DB.get('album') || [];
     feedSeen = await DB.get('feedSeen') || 0;
-    wallet = { ...wallet, ...(await DB.get('wallet') || {}) };
+    wallet = fixWallet({ ...wallet, ...(await DB.get('wallet') || {}) });
+    opLog = await DB.get('opLog').catch(() => null) || [];
     tracks = await DB.get('tracks') || [];
     for (const p of Object.keys(PROVIDERS)) configured[p] = !!(await loadSecret(p));
     await loadWall();

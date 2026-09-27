@@ -1,5 +1,5 @@
 // 每次更新文件后把版本号 +1，手机上才会拿到新版本
-const CACHE = 'zhiyan-v17';
+const CACHE = 'zhiyan-v18';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/marked.min.js', './vendor/purify.min.js', './vendor/highlight.min.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
@@ -60,7 +60,9 @@ self.addEventListener('push', e => {
       if (!item?.text) {
         const cfg = await kv('pushcfg');
         if (cfg?.url) {
-          const r = await fetch(cfg.url + '/inbox', { headers: { 'x-zy-pass': cfg.pass } });
+          // 带上这台设备的编号，取的是这台设备还没确认过的消息（老版本 Worker 会忽略这个参数）
+          const dev = await kv('deviceId');
+          const r = await fetch(cfg.url + '/inbox' + (dev ? '?d=' + encodeURIComponent(dev) : ''), { headers: { 'x-zy-pass': cfg.pass } });
           const j = await r.json();
           item = j.items?.[j.items.length - 1];
         }
