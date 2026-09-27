@@ -130,6 +130,11 @@
   .err { color: var(--danger); font-size: 14px; white-space: pre-line; margin: 2px 0 0; }
   .cursor::after { content: "▍"; animation: blink 1s steps(2) infinite; color: var(--muted); }
   .waiting { color: var(--muted); font-size: 14px; }
+  .top .who small.typing { color: var(--accent); }
+  .react { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 1px 9px; font-size: 14px; }
+  .react-pick { position: fixed; z-index: 30; display: flex; gap: 2px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px; box-shadow: 0 6px 24px rgba(0,0,0,.14); }
+  .react-pick button { border: 0; background: none; font-size: 22px; width: 38px; height: 38px; border-radius: 50%; }
+  .react-pick button:hover, .react-pick button.on { background: var(--user-bubble); }
   .waiting i { display: inline-block; width: 5px; height: 5px; margin-left: 3px; border-radius: 50%; background: currentColor; animation: blink 1.2s infinite; }
   .waiting i:nth-child(2) { animation-delay: .2s; } .waiting i:nth-child(3) { animation-delay: .4s; }
   .editing { max-width: 760px; margin: 0 auto 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--accent); }
@@ -409,6 +414,10 @@
   .post header small { display: block; color: var(--muted); font-size: 12px; }
   .post p { margin: 0; white-space: pre-wrap; }
   .post .pic { width: 100%; max-width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px; background: var(--ground); cursor: zoom-in; }
+  .post .pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .post .pgrid.two { grid-template-columns: repeat(2, 1fr); max-width: 420px; }
+  .post .pgrid .pic { border-radius: 8px; }
+  .feed-pics { flex-wrap: wrap; margin: 8px 0 0; }
   .post .ops { display: flex; gap: 16px; font-size: 13px; }
   .post .ops button { border: 0; background: none; color: var(--muted); padding: 2px 0; }
   .post .ops button.on { color: var(--danger); }
@@ -496,7 +505,8 @@
         <div id="feedCompose" hidden style="margin-bottom:14px">
           <label class="field">说点什么<textarea id="feedText" maxlength="300" placeholder="此刻在想什么…"></textarea></label>
           <div class="row"><button class="btn" type="button" id="feedPic">＋ 配图</button><button class="btn primary" type="button" id="feedSend">发布</button><button class="btn" type="button" id="feedCancel">取消</button><span class="status" id="feedPicName"></span></div>
-          <input type="file" id="feedFile" accept="image/*" hidden>
+          <div class="attach feed-pics" id="feedPics" hidden></div>
+          <input type="file" id="feedFile" accept="image/*" multiple hidden>
         </div>
         <div id="feed"></div>
       </div></div>
@@ -1139,6 +1149,7 @@ function cardHTML(c) {
 }
 
 // 这些卡片动过真实的账（小金库、账单、攒钱、喝水）。重新生成或改写会再记一遍，所以这种回合不给重来
+const REACTS = ['❤️', '😂', '🥺', '😮', '👍', '🫂'];
 const LEDGER_CARDS = new Set(['hb', 'gift', 'save', 'bill', 'water']);
 const touchesLedger = m => !!m?.cards?.some(c => LEDGER_CARDS.has(c.type));
 function lastUserAt() {
@@ -1151,6 +1162,37 @@ function turnRedoable() {
   const msgs = chat?.messages || [], u = lastUserAt();
   if (u < 0 || msgs[u].xfer || msgs[u].evt) return false;
   return !msgs.slice(u + 1).some(m => m.proactive || touchesLedger(m));
+}
+let reactAt = -1;
+function openReact(i, btn) {
+  closeReact();
+  reactAt = i;
+  const cur = chat.messages[i]?.reaction;
+  const box = document.createElement('div');
+  box.className = 'react-pick'; box.id = 'reactPick';
+  box.innerHTML = REACTS.map(r => `<button type="button" data-pick="${r}" class="${r === cur ? 'on' : ''}">${r}</button>`).join('');
+  document.body.appendChild(box);
+  const b = btn.getBoundingClientRect(), w = box.offsetWidth;
+  box.style.left = Math.max(8, Math.min(innerWidth - w - 8, b.left - 8)) + 'px';
+  box.style.top = Math.max(8, b.top - box.offsetHeight - 8) + 'px';
+}
+function closeReact() { $('reactPick')?.remove(); reactAt = -1; }
+async function setReaction(i, r) {
+  const m = chat?.messages?.[i]; if (!m || m.role !== 'assistant') return;
+  if (!r || m.reaction === r) delete m.reaction; else m.reaction = r;
+  await saveChat(chat);
+  const node = $('thread').querySelector(`.msg.bot[data-i="${i}"]`);
+  if (node) { node.innerHTML = botInner(m, i, false); addCopyButtons(node); hydrateImgs(node); }
+}
+// 表情不单独发请求：下次说话时，放进系统提示里让 TA 知道
+function reactionNote() {
+  const msgs = chat?.messages || [];
+  const got = [];
+  for (let i = msgs.length - 1; i >= 0 && got.length < 3 && i >= msgs.length - 30; i--) {
+    const m = msgs[i];
+    if (m.role === 'assistant' && m.reaction) got.push(`「${stripTags(m.content).slice(0, 24)}…」→ ${m.reaction}`);
+  }
+  return got.length ? `${P().nick || '对方'}给你最近的几句回复点了表情（感受一下就好，不用特意提）：\n` + got.join('\n') : '';
 }
 function highlightIn(root) {
   if (!window.hljs) return;
@@ -1177,7 +1219,8 @@ function botInner(m, i, streaming) {
   const cards = m.cards?.length ? `<div class="cards">${m.cards.map(cardHTML).join('')}</div>` : '';
   const err = m.error ? `<p class="err">${esc(m.error)}</p>` : '';
   const redo = !streaming && i === chat.messages.length - 1 && turnRedoable() ? `<button type="button" data-regen>${m.error ? '重试' : '重新生成'}</button>` : '';
-  const acts = streaming ? '' : `<div class="acts"><button type="button" data-copy="${i}">复制</button>${'speechSynthesis' in window ? `<button type="button" data-speak="${i}">朗读</button>` : ''}${redo}</div>`;
+  const react = !streaming && m.reaction ? `<button type="button" class="react" data-unreact="${i}" aria-label="取消表情">${m.reaction}</button>` : '';
+  const acts = streaming ? '' : `${react}<div class="acts"><button type="button" data-react="${i}" aria-label="回应一个表情">☺</button><button type="button" data-copy="${i}">复制</button>${'speechSynthesis' in window ? `<button type="button" data-speak="${i}">朗读</button>` : ''}${redo}</div>`;
   const pro = m.proactive ? `<div class="pro">${m.kind === 'remind' ? '提醒你' : '主动找你'} · ${new Date(m.at || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>` : '';
   const body = streaming && !m.content && !m.thinking
     ? '<div class="waiting">正在想<i></i><i></i><i></i></div>'
@@ -1215,6 +1258,10 @@ function setBusy(b) {
   $('sendBtn').setAttribute('aria-label', b ? '停止' : '发送');
   $('sendBtn').disabled = !b && !$('input').value.trim() && !pendingImgs.length;
   $('topModel').disabled = b;
+  // 像微信那样，TA 回复的时候顶上写"正在输入…"
+  const sub = $('topSub');
+  if (b) { sub.textContent = `${P().name || 'TA'} 正在输入…`; sub.classList.add('typing'); }
+  else if (sub.classList.contains('typing')) { sub.classList.remove('typing'); renderShell(); }
 }
 
 async function openChat(id) {
@@ -1272,6 +1319,8 @@ function systemPrompt() {
     const t = tracks.find(t => t.id === playing);
     if (t) parts.push(`${nick}正在 App 里放《${t.name}》，你们在一起听。可以自然地聊到这首歌，别每句都提。`);
   }
+  const rn = reactionNote();
+  if (rn) parts.push(rn);
   if (settings.sys.trim()) parts.push(settings.sys.trim());
   return parts.join('\n\n');
 }
@@ -2356,11 +2405,12 @@ function ago(at) {
   const d = new Date(at);
   return m < 48 * 60 ? `昨天 ${pad(d.getHours())}:${pad(d.getMinutes())}` : `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 }
-async function complete(system, user) {
+async function complete(system, user, imgs = []) {
   const provider = settings.provider, key = await loadSecret(provider);
   if (!key) throw new Error(`先在设置里填 ${PROVIDERS[provider].name} 的 API Key`);
   let text = '';
-  for await (const part of streamChat({ provider, key, system, messages: [{ role: 'user', content: user }] })) if (part.text) text += part.text;
+  const msg = imgs.length ? { role: 'user', content: user, imgs } : { role: 'user', content: user };
+  for await (const part of streamChat({ provider, key, system, messages: [msg] })) if (part.text) text += part.text;
   return text.trim();
 }
 function feedSystem() {
@@ -2426,29 +2476,45 @@ function renderFeed() {
     <article class="post">
       <header><span class="av">${p.who === 'me' ? esc((P().nick || '我').slice(0, 1)) : avatarInner()}</span><span><b>${p.who === 'me' ? me : name}</b><small>${ago(p.at)}</small></span></header>
       <p>${esc(p.text)}</p>
-      ${p.drawing ? '<div class="ph"></div>' : p.img ? `<img class="pic" data-postimg="${p.id}" alt="">` : ''}
+      ${p.drawing ? '<div class="ph"></div>' : (p.pics || 0) > 1
+        ? `<div class="pgrid${p.pics === 2 || p.pics === 4 ? ' two' : ''}">${Array.from({ length: p.pics }, (_, k) => `<img class="pic" data-postimg="${p.id}" data-k="${k}" alt="">`).join('')}</div>`
+        : p.img ? `<img class="pic" data-postimg="${p.id}" alt="">` : ''}
       <div class="ops"><button type="button" data-like="${p.id}" class="${p.liked ? 'on' : ''}">${p.liked ? '♥ 喜欢' : '♡ 喜欢'}</button><button type="button" data-cmt="${p.id}">评论</button></div>
       ${p.comments.length ? `<div class="cmts">${p.comments.map(c => `<div><b>${c.who === 'me' ? me : name}</b>${c.who === 'ta' && p.who !== 'me' ? ` 回复 ${me}` : ''}：${esc(c.text)}</div>`).join('')}</div>` : ''}
       <div class="cmt-in" data-cmtbox="${p.id}" hidden><input maxlength="100" placeholder="说点什么…" aria-label="评论"><button class="btn primary" type="button" data-cmtsend="${p.id}">发送</button></div>
     </article>`).join('') : `<div class="empty"><i>◎</i><b>还没有动态</b>点上面的按钮，看看 TA 今天在干嘛</div>`;
   $('feed').querySelectorAll('img[data-postimg]').forEach(async img => {
     const p = moments.find(x => x.id === img.dataset.postimg);
-    const blob = await DB.get('img:' + p.id).catch(() => null);
-    img.src = blob ? URL.createObjectURL(blob) : (p.url || '');
+    const k = +(img.dataset.k || 0);
+    const blob = await DB.get(postImgKey(p.id, k)).catch(() => null);
+    img.src = blob ? URL.createObjectURL(blob) : (k ? '' : p.url || '');
   });
 }
 // ---- 我也发一条 ----
-let myPic = null;
+// 第一张沿用老的键 img:<id>，老帖子不用迁移；第二张起是 img:<id>:1、img:<id>:2…
+const MAX_POST_PICS = 9;
+const postImgKey = (id, k) => k ? `img:${id}:${k}` : 'img:' + id;
+let myPics = [];
+function renderMyPics() {
+  $('feedPics').hidden = !myPics.length;
+  $('feedPics').querySelectorAll('img').forEach(im => URL.revokeObjectURL(im.src));
+  $('feedPics').innerHTML = myPics.map((b, i) => `<span><img src="${URL.createObjectURL(b)}" alt=""><button type="button" data-unpic="${i}" aria-label="移除">✕</button></span>`).join('');
+  $('feedPicName').textContent = myPics.length ? `${myPics.length} / ${MAX_POST_PICS} 张` : '';
+}
 function resetCompose() {
-  myPic = null;
-  $('feedText').value = ''; $('feedPicName').textContent = ''; $('feedFile').value = '';
+  myPics = []; renderMyPics();
+  $('feedText').value = ''; $('feedFile').value = '';
   $('feedCompose').hidden = true;
 }
+const blobToDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 async function publishMine() {
   const text = $('feedText').value.trim();
-  if (!text && !myPic) { toast('写点什么，或者配张图'); return; }
+  if (!text && !myPics.length) { toast('写点什么，或者配张图'); return; }
   const post = { id: uid(), at: Date.now(), who: 'me', text, liked: false, comments: [] };
-  if (myPic) { await DB.set('img:' + post.id, myPic); post.img = true; }
+  try {
+    for (let k = 0; k < myPics.length; k++) await DB.set(postImgKey(post.id, k), myPics[k]);
+  } catch { toast('手机存储快满了，照片没存进去'); return; }
+  if (myPics.length) { post.img = true; post.pics = myPics.length; }
   moments.unshift(post); moments = moments.slice(0, 200);
   await DB.set('moments', moments);
   resetCompose(); renderFeed();
@@ -2461,8 +2527,19 @@ async function taReplyToMine(p) {
   $('feedStatus').textContent = `${P().name || 'TA'} 看到了…`;
   try {
     const nick = P().nick || '对方';
-    const reply = stripTags(await complete(feedSystem(),
-      `${nick}刚发了一条动态：「${p.text || '（只有一张照片，没配文字）'}」${p.img ? '，还配了一张照片' : ''}。像在朋友圈里给${nick}评论一样回一句，简短自然，别客套也别夸张。只输出评论内容。`))
+    const n = p.img ? (p.pics || 1) : 0;
+    // 能看图的模型把照片真的发过去（最多 4 张，省额度）；DeepSeek 看不了图，只告诉它配了几张
+    const seeing = n && settings.provider !== 'deepseek';
+    const imgs = [];
+    if (seeing) for (let k = 0; k < Math.min(n, 4); k++) {
+      const b = await DB.get(postImgKey(p.id, k)).catch(() => null);
+      if (b) imgs.push(await blobToDataURL(b));
+    }
+    const said = p.text ? `「${p.text}」` : `（没配文字，只发了照片）`;
+    const ask = imgs.length
+      ? `${nick}刚发了一条动态：${said}，配了 ${n} 张照片，照片就附在这条消息里，你看得到。像在朋友圈里给${nick}评论一样回一句：可以自然地说到照片里的东西，简短自然，别客套也别夸张，别说"照片里"这种旁白。只输出评论内容。`
+      : `${nick}刚发了一条动态：${said}${n ? `，配了 ${n} 张照片（你看不到照片内容，别假装看到了）` : ''}。像在朋友圈里给${nick}评论一样回一句，简短自然，别客套也别夸张。只输出评论内容。`;
+    const reply = stripTags(await complete(feedSystem(), ask, imgs))
       .replace(/^["“「]+|["”」]+$/g, '').trim();
     if (reply) { p.comments.push({ who: 'ta', text: reply, at: Date.now() }); await DB.set('moments', moments); renderFeed(); }
   } catch { /* 静默 */ }
@@ -2728,11 +2805,17 @@ $('feedMine').onclick = () => {
 $('feedCancel').onclick = resetCompose;
 $('feedSend').onclick = publishMine;
 $('feedPic').onclick = () => $('feedFile').click();
+$('feedPics').addEventListener('click', e => { const b = e.target.closest('[data-unpic]'); if (b) { myPics.splice(+b.dataset.unpic, 1); renderMyPics(); } });
 $('feedFile').onchange = async e => {
-  const f = e.target.files?.[0]; e.target.value = '';
-  if (!f) return;
-  try { myPic = await shrinkPhoto(f, 1280); $('feedPicName').textContent = '已选一张照片'; }
-  catch { myPic = null; $('feedPicName').textContent = ''; toast('这张图读不了'); }
+  const files = [...(e.target.files || [])]; e.target.value = '';
+  if (!files.length) return;
+  let bad = 0;
+  for (const file of files) {
+    if (myPics.length >= MAX_POST_PICS) { toast(`一条动态最多 ${MAX_POST_PICS} 张`); break; }
+    try { myPics.push(await shrinkPhoto(file, 1280)); } catch { bad++; }
+  }
+  if (bad) toast(`有 ${bad} 张图读不了，已跳过`);
+  renderMyPics();
 };
 $('feed').addEventListener('click', async e => {
   const lk = e.target.closest('[data-like]');
@@ -2856,6 +2939,8 @@ $('thread').addEventListener('click', e => {
   const c = e.target.closest('[data-copy]'); if (c) { copyText(stripTags(chat.messages[+c.dataset.copy]?.content), c); return; }
   const s = e.target.closest('[data-speak]'); if (s) { speak(chat.messages[+s.dataset.speak]?.content || ''); return; }
   if (e.target.closest('[data-regen]')) { regenerate(); return; }
+  const rc = e.target.closest('[data-react]'); if (rc) { e.stopPropagation(); +rc.dataset.react === reactAt ? closeReact() : openReact(+rc.dataset.react, rc); return; }
+  const ur = e.target.closest('[data-unreact]'); if (ur) { setReaction(+ur.dataset.unreact, null); return; }
   const ed = e.target.closest('[data-edit]'); if (ed) { startEdit(+ed.dataset.edit); return; }
   const hb = e.target.closest('[data-hbopen]'); if (hb) { openHongbao(hb.dataset.hbopen); return; }
   const sv = e.target.closest('[data-saveimg]');
@@ -2883,6 +2968,12 @@ function submit() {
   send(t, imgs, {}, { cutAt });
 }
 $('editCancel').onclick = cancelEdit;
+document.addEventListener('click', e => {
+  const pk = e.target.closest('[data-pick]');
+  if (pk) { const i = reactAt; closeReact(); setReaction(i, pk.dataset.pick); return; }
+  if (reactAt >= 0 && !e.target.closest('#reactPick, [data-react]')) closeReact();
+});
+$('scroll').addEventListener('scroll', () => { if (reactAt >= 0) closeReact(); }, { passive: true });
 let searchTimer = 0;
 $('listSearch').addEventListener('input', e => { clearTimeout(searchTimer); const q = e.target.value; searchTimer = setTimeout(() => searchChats(q), 200); });
 $('topModel').addEventListener('change', async e => {
