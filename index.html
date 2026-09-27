@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1b1c1e" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,6 +14,7 @@
 <title>知言</title>
 <script src="vendor/marked.min.js"></script>
 <script src="vendor/purify.min.js"></script>
+<script src="vendor/highlight.min.js" defer></script>
 <style>
   :root {
     --ground: #f6f4ef;
@@ -65,8 +66,11 @@
   .item:hover, .item.on { background: var(--card); }
   .item span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; cursor: pointer; }
   .item small { color: var(--muted); font-size: 11px; }
-  .item .del { opacity: 0; border: 0; background: none; color: var(--muted); padding: 0 4px; }
-  .item:hover .del, .item.on .del { opacity: 1; }
+  .item .del, .item .ren { opacity: 0; border: 0; background: none; color: var(--muted); padding: 0 4px; }
+  .item:hover .del, .item.on .del, .item:hover .ren, .item.on .ren { opacity: 1; }
+  .item .hit { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search { width: 100%; margin-top: 8px; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 12px; font-size: 14px; outline: 0; }
+  .search:focus { border-color: var(--accent); }
   .side-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
   .side-foot button { border: 0; background: none; color: var(--muted); text-align: left; padding: 7px 6px; border-radius: 8px; font-size: 14px; }
   .side-foot button:hover { background: var(--card); color: var(--ink); }
@@ -81,6 +85,8 @@
   .top .who small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .icon-btn { border: 0; background: none; width: 36px; height: 36px; border-radius: 10px; font-size: 18px; color: var(--muted); display: grid; place-items: center; }
   .icon-btn:hover { background: var(--card); color: var(--ink); }
+  .top-model { flex: none; max-width: 34vw; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
+  .top-model:disabled { opacity: .6; }
 
   .scroll { flex: 1; overflow-y: auto; }
   .thread { max-width: 760px; margin: 0 auto; padding: 24px 20px 12px; display: grid; gap: 20px; }
@@ -98,6 +104,9 @@
   .chip { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 14px; font-size: 14px; color: var(--muted); }
   .chip:hover { color: var(--ink); border-color: var(--muted); }
 
+  .uwrap { justify-self: end; max-width: 82%; display: grid; justify-items: end; }
+  .uwrap .msg.user { max-width: 100%; }
+  .uwrap .acts { margin-top: 2px; }
   .msg.user { justify-self: end; max-width: 82%; background: var(--user-bubble); padding: 9px 14px; border-radius: 18px 18px 4px 18px; white-space: pre-wrap; word-break: break-word; }
   .msg.bot { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; }
   .msg.bot .av { width: 30px; height: 30px; font-size: 14px; margin-top: 2px; }
@@ -120,6 +129,13 @@
   .think div { white-space: pre-wrap; margin-top: 6px; }
   .err { color: var(--danger); font-size: 14px; white-space: pre-line; margin: 2px 0 0; }
   .cursor::after { content: "▍"; animation: blink 1s steps(2) infinite; color: var(--muted); }
+  .waiting { color: var(--muted); font-size: 14px; }
+  .waiting i { display: inline-block; width: 5px; height: 5px; margin-left: 3px; border-radius: 50%; background: currentColor; animation: blink 1.2s infinite; }
+  .waiting i:nth-child(2) { animation-delay: .2s; } .waiting i:nth-child(3) { animation-delay: .4s; }
+  .editing { max-width: 760px; margin: 0 auto 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--accent); }
+  .editing button { border: 0; background: none; color: var(--muted); font-size: 13px; padding: 0 4px; }
+  .msg.bot pre code.hljs { background: none; padding: 0; }
+  .hljs{color:#c9d1d9}.hljs-doctag,.hljs-keyword,.hljs-meta .hljs-keyword,.hljs-template-tag,.hljs-template-variable,.hljs-type,.hljs-variable.language_{color:#ff7b72}.hljs-title,.hljs-title.class_,.hljs-title.class_.inherited__,.hljs-title.function_{color:#d2a8ff}.hljs-attr,.hljs-attribute,.hljs-literal,.hljs-meta,.hljs-number,.hljs-operator,.hljs-selector-attr,.hljs-selector-class,.hljs-selector-id,.hljs-variable{color:#79c0ff}.hljs-meta .hljs-string,.hljs-regexp,.hljs-string{color:#a5d6ff}.hljs-built_in,.hljs-symbol{color:#ffa657}.hljs-code,.hljs-comment,.hljs-formula{color:#8b949e}.hljs-name,.hljs-quote,.hljs-selector-pseudo,.hljs-selector-tag{color:#7ee787}.hljs-section{color:#1f6feb;font-weight:700}.hljs-bullet{color:#f2cc60}.hljs-emphasis{font-style:italic}.hljs-strong{font-weight:700}.hljs-addition{color:#aff5b4;background-color:#033a16}.hljs-deletion{color:#ffdcd7;background-color:#67060c}
   @keyframes blink { 50% { opacity: 0; } }
 
   .cards { display: grid; gap: 8px; margin-top: 10px; }
@@ -319,7 +335,7 @@
   .composer { padding-bottom: 10px; }
   .player { bottom: 86px; }
   .toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
-  html.glass .tabs, html.glass .tile, html.glass .svc a, html.glass .mlist, html.glass .memrow, html.glass .top .menu, html.glass .top .icon-btn {
+  html.glass .tabs, html.glass .tile, html.glass .svc a, html.glass .mlist, html.glass .memrow, html.glass .top .menu, html.glass .top .icon-btn, html.glass .top-model, html.glass .search {
     -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%);
   }
   html.glass .tile, html.glass .svc a, html.glass .mlist, html.glass .memrow { box-shadow: var(--edge); }
@@ -421,7 +437,7 @@
 
   .scrim { display: none; }
   @media (max-width: 760px) {
-    .item .del { opacity: 1; }
+    .item .del, .item .ren { opacity: 1; }
   }
   @media (prefers-reduced-motion: reduce) { .side { transition: none; } .cursor::after, .card .ph { animation: none; } }
 </style>
@@ -432,6 +448,7 @@
   <aside class="side">
     <div class="brand"><span class="av" id="sideAv" style="width:36px;height:36px;font-size:16px"></span><span><b id="sideName">知言</b><small id="sideDays"></small></span></div>
     <button class="new" id="newBtn" type="button">＋ 新对话</button>
+    <input class="search" id="listSearch" type="search" placeholder="搜索聊天记录" aria-label="搜索聊天记录" autocomplete="off">
     <div class="list-title">聊天记录</div>
     <div class="list" id="list"></div>
     <div class="side-foot"><b id="memCount">0</b><span>条长期记忆<br>跨对话陪着你</span></div>
@@ -443,6 +460,7 @@
     <div class="top">
       <button class="menu" id="menuBtn" type="button" aria-label="打开侧边栏">☰</button>
       <button class="who" type="button" data-open="personaSheet"><span class="av" id="topAv" style="width:34px;height:34px;font-size:15px"></span><span style="min-width:0"><b id="topName">知言</b><small id="topSub"></small></span></button>
+      <select class="top-model" id="topModel" aria-label="切换模型"></select>
       <button class="icon-btn" type="button" id="newBtn2" aria-label="新对话">＋</button>
     </div>
     <section class="view" id="vChat">
@@ -459,6 +477,7 @@
     <div class="composer">
       <div class="acts-row" id="actsRow" hidden><button type="button" id="actPhoto">📷 照片</button><button type="button" id="actCall">📞 通话</button><button type="button" id="actXfer">¥ 给 TA 转账</button><button type="button" data-prefill="帮我画一张：">✎ 画一张</button><input type="file" id="photoFile" accept="image/*" multiple hidden></div>
       <div class="attach" id="attach" hidden></div>
+      <div class="editing" id="editBar" hidden>✎ 正在修改上一条消息，发出去后 TA 会重新回答<button type="button" id="editCancel">取消</button></div>
       <div class="box">
         <button class="plus" id="plusBtn" type="button" aria-label="更多">＋</button>
         <textarea id="input" rows="1" aria-label="输入消息"></textarea>
@@ -876,6 +895,7 @@ let pendingImgs = [];
 let configured = {}, imgReady = false;
 const drawing = new Set(), imgURLs = new Map();
 let currentId = null, chat = null, showAll = false, controller = null;
+let listQuery = '', listHits = new Map(), editingAt = -1;
 
 const P = () => settings.persona;
 const model = (p = settings.provider) => settings.models[p] || PROVIDERS[p].models[0];
@@ -1002,15 +1022,58 @@ function renderShell() {
   $('memCount').textContent = memories.length;
   $('sideModel').textContent = configured[settings.provider] ? `${PROVIDERS[settings.provider].name} · ${model()}` : '还没有配置 Key';
   $('input').placeholder = `和${P().name || 'TA'}说点什么…`;
+  fillTopModel();
+}
+function fillTopModel() {
+  const sel = $('topModel');
+  const ready = Object.keys(PROVIDERS).filter(p => configured[p]);
+  sel.hidden = !ready.length;
+  if (!ready.length) return;
+  sel.innerHTML = ready.map(p => {
+    const list = PROVIDERS[p].models.includes(model(p)) ? PROVIDERS[p].models : [model(p), ...PROVIDERS[p].models];
+    return `<optgroup label="${esc(PROVIDERS[p].name)}">${list.map(m => `<option value="${p}|${esc(m)}">${esc(m)}</option>`).join('')}</optgroup>`;
+  }).join('');
+  sel.value = `${settings.provider}|${model()}`;
 }
 
 function renderList() {
-  $('list').innerHTML = index.length ? index.map(c => `
+  const q = listQuery.trim().toLowerCase();
+  const shown = q ? index.filter(c => (c.title || '').toLowerCase().includes(q) || listHits.has(c.id)) : index;
+  $('list').innerHTML = shown.length ? shown.map(c => `
     <div class="item${c.id === currentId ? ' on' : ''}">
-      <span data-id="${c.id}" role="button" tabindex="0">${esc(c.title || '新对话')}</span>
+      <span data-id="${c.id}" role="button" tabindex="0">${esc(c.title || '新对话')}${q && listHits.has(c.id) ? `<small class="hit">${esc(listHits.get(c.id))}</small>` : ''}</span>
       ${c.source ? `<small>${esc(c.source)}</small>` : ''}
+      <button class="ren" type="button" data-ren="${c.id}" aria-label="重命名">✎</button>
       <button class="del" type="button" data-del="${c.id}" aria-label="删除对话">✕</button>
-    </div>`).join('') : '<p class="note" style="padding:0 6px">还没有聊天记录</p>';
+    </div>`).join('')
+    : `<p class="note" style="padding:0 6px">${q ? '没有找到相关的聊天' : '还没有聊天记录'}</p>`;
+}
+// 搜索：标题直接过滤；正文要把每段聊天从 IndexedDB 读出来，所以异步补上命中片段
+let searchSeq = 0;
+async function searchChats(q) {
+  const seq = ++searchSeq;
+  listQuery = q; listHits = new Map(); renderList();
+  const k = q.trim().toLowerCase();
+  if (!k) return;
+  for (const c of index) {
+    const full = c.id === currentId && chat ? chat : await DB.get('chat:' + c.id).catch(() => null);
+    if (seq !== searchSeq) return;
+    const m = full?.messages?.find(x => (x.content || '').toLowerCase().includes(k));
+    if (!m) continue;
+    const t = stripTags(m.content), at = t.toLowerCase().indexOf(k);
+    listHits.set(c.id, (at > 12 ? '…' : '') + t.slice(Math.max(0, at - 12), at + 28).replace(/\s+/g, ' '));
+  }
+  if (seq === searchSeq) renderList();
+}
+async function renameChat(id) {
+  if (controller) return;
+  const item = index.find(c => c.id === id); if (!item) return;
+  const t = prompt('给这段聊天起个名字', item.title || '')?.trim();
+  if (!t) return;
+  item.title = t.slice(0, 40);
+  const c = id === currentId && chat ? chat : await DB.get('chat:' + id);
+  if (c) { c.title = item.title; await saveChat(c); }
+  await saveIndex(); renderList(); renderShell();
 }
 
 function renderHome() {
@@ -1075,7 +1138,26 @@ function cardHTML(c) {
   return '';
 }
 
+// 这些卡片动过真实的账（小金库、账单、攒钱、喝水）。重新生成或改写会再记一遍，所以这种回合不给重来
+const LEDGER_CARDS = new Set(['hb', 'gift', 'save', 'bill', 'water']);
+const touchesLedger = m => !!m?.cards?.some(c => LEDGER_CARDS.has(c.type));
+function lastUserAt() {
+  const msgs = chat?.messages || [];
+  for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].role === 'user') return i;
+  return -1;
+}
+// 最后一轮（最后一条用户消息之后的 TA 回复）能不能重来
+function turnRedoable() {
+  const msgs = chat?.messages || [], u = lastUserAt();
+  if (u < 0 || msgs[u].xfer || msgs[u].evt) return false;
+  return !msgs.slice(u + 1).some(m => m.proactive || touchesLedger(m));
+}
+function highlightIn(root) {
+  if (!window.hljs) return;
+  root.querySelectorAll('pre code:not([data-highlighted])').forEach(c => { try { hljs.highlightElement(c); } catch { /* 高亮失败就保持原样 */ } });
+}
 function addCopyButtons(root) {
+  highlightIn(root);
   root.querySelectorAll('pre').forEach(pre => {
     if (pre.querySelector('.copy')) return;
     const b = document.createElement('button');
@@ -1094,16 +1176,22 @@ function botInner(m, i, streaming) {
   const think = m.thinking ? `<details class="think"${streaming && !m.content ? ' open' : ''}><summary>TA 在想…</summary><div>${esc(m.thinking)}</div></details>` : '';
   const cards = m.cards?.length ? `<div class="cards">${m.cards.map(cardHTML).join('')}</div>` : '';
   const err = m.error ? `<p class="err">${esc(m.error)}</p>` : '';
-  const acts = streaming ? '' : `<div class="acts"><button type="button" data-copy="${i}">复制</button>${'speechSynthesis' in window ? `<button type="button" data-speak="${i}">朗读</button>` : ''}</div>`;
+  const redo = !streaming && i === chat.messages.length - 1 && turnRedoable() ? `<button type="button" data-regen>${m.error ? '重试' : '重新生成'}</button>` : '';
+  const acts = streaming ? '' : `<div class="acts"><button type="button" data-copy="${i}">复制</button>${'speechSynthesis' in window ? `<button type="button" data-speak="${i}">朗读</button>` : ''}${redo}</div>`;
   const pro = m.proactive ? `<div class="pro">${m.kind === 'remind' ? '提醒你' : '主动找你'} · ${new Date(m.at || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>` : '';
-  return `<span class="av">${avatarInner()}</span><div>${pro}${think}${streaming || stripTags(m.content) ? `<div class="body${streaming ? ' cursor' : ''}">${md(stripTags(m.content))}</div>` : ''}${cards}${err}${acts}</div>`;
+  const body = streaming && !m.content && !m.thinking
+    ? '<div class="waiting">正在想<i></i><i></i><i></i></div>'
+    : streaming || stripTags(m.content) ? `<div class="body${streaming ? ' cursor' : ''}">${md(stripTags(m.content))}</div>` : '';
+  return `<span class="av">${avatarInner()}</span><div>${pro}${think}${body}${cards}${err}${acts}</div>`;
 }
 
-function userHTML(m) {
+function userHTML(m, i) {
   if (m.xfer) return `<div class="xfer"><small>转账给 ${esc(P().name || 'TA')}</small><b>¥${money(m.xfer.amount)}</b><small>${esc(m.xfer.note || '存进小金库')}</small></div>`;
   if (m.evt) return `<div class="evt">${esc(m.content)}</div>`;
   const imgs = m.imgs?.length ? `<div class="uimgs">${m.imgs.map(u => `<img src="${u}" data-zoom alt="照片">`).join('')}</div>` : '';
-  return `<div class="msg user${m.content ? '' : ' pic'}">${imgs}${esc(m.content || '')}</div>`;
+  const bubble = `<div class="msg user${m.content ? '' : ' pic'}">${imgs}${esc(m.content || '')}</div>`;
+  const edit = i === lastUserAt() && turnRedoable() && !controller ? `<button type="button" data-edit="${i}">编辑</button>` : '';
+  return `<div class="uwrap">${bubble}<div class="acts">${m.content ? `<button type="button" data-copy="${i}">复制</button>` : ''}${edit}</div></div>`;
 }
 function renderThread() {
   renderHome();
@@ -1113,7 +1201,7 @@ function renderThread() {
   for (let i = start; i < msgs.length; i++) {
     const m = msgs[i];
     html += m.role === 'user'
-      ? userHTML(m)
+      ? userHTML(m, i)
       : `<div class="msg bot" data-i="${i}">${botInner(m, i, false)}</div>`;
   }
   $('thread').innerHTML = html;
@@ -1126,10 +1214,12 @@ function setBusy(b) {
   $('sendBtn').innerHTML = b ? STOP_ICON : SEND_ICON;
   $('sendBtn').setAttribute('aria-label', b ? '停止' : '发送');
   $('sendBtn').disabled = !b && !$('input').value.trim() && !pendingImgs.length;
+  $('topModel').disabled = b;
 }
 
 async function openChat(id) {
   if (controller) return;
+  if (editingAt >= 0) cancelEdit();
   currentId = id; showAll = false;
   chat = id ? await DB.get('chat:' + id) : null;
   if (id && !chat) { index = index.filter(c => c.id !== id); await saveIndex(); currentId = null; }
@@ -1597,7 +1687,7 @@ document.addEventListener('visibilitychange', () => {
 });
 navigator.serviceWorker?.addEventListener('message', e => { if (e.data === 'inbox') pullInbox(); });
 
-async function send(text, imgs = [], extra = {}) {
+async function send(text, imgs = [], extra = {}, { cutAt = -1 } = {}) {
   text = text.trim();
   if ((!text && !imgs.length) || controller) return;
   const provider = settings.provider;
@@ -1612,9 +1702,10 @@ async function send(text, imgs = [], extra = {}) {
     if (addMemory(remember[1])) await DB.set('memories', memories);
   }
 
+  if (cutAt >= 0 && chat) chat.messages.length = cutAt;
   if (!chat) { chat = { id: uid(), title: (text || '一张照片').slice(0, 24), messages: [] }; currentId = chat.id; }
   chat.messages.push({ role: 'user', content: text, ...(imgs.length ? { imgs } : {}), ...extra });
-  if (imgs.length) {
+  if (imgs.length && cutAt < 0) {
     for (const u of imgs) album.unshift({ id: uid(), kind: 'photo', data: u, at: Date.now(), cap: text.slice(0, 20) });
     DB.set('album', album).catch(() => toast('手机存储快满了，照片可能没存进相册'));
     markFirst('photo', '第一次给 TA 发照片');
@@ -1622,6 +1713,29 @@ async function send(text, imgs = [], extra = {}) {
   markFirst('chat', '第一次和 TA 说话');
   markActive();
   await runBot(provider, key);
+}
+
+async function regenerate() {
+  if (controller || !turnRedoable()) return;
+  const provider = settings.provider;
+  const key = await loadSecret(provider);
+  if (!key) { openSheet('setSheet'); toast(`先填 ${PROVIDERS[provider].name} 的 API Key`); return; }
+  chat.messages.length = lastUserAt() + 1;
+  await runBot(provider, key);
+}
+function startEdit(i) {
+  if (controller || i !== lastUserAt() || !turnRedoable()) return;
+  const m = chat.messages[i];
+  editingAt = i;
+  input.value = m.content || ''; input.dispatchEvent(new Event('input'));
+  pendingImgs = [...(m.imgs || [])]; renderAttach();
+  $('editBar').hidden = false;
+  input.focus();
+}
+function cancelEdit() {
+  editingAt = -1; $('editBar').hidden = true;
+  input.value = ''; input.dispatchEvent(new Event('input'));
+  pendingImgs = []; renderAttach();
 }
 
 // 生成一条 TA 的回复。nudge：没有新的用户消息时，给模型的一句占位；extra：附加到系统提示里的要求。
@@ -1638,6 +1752,7 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
   let raf = 0;
   const paint = () => { raf = 0; node.innerHTML = botInner(bot, i, true); $('scroll').scrollTop = $('scroll').scrollHeight; };
   const schedule = () => { if (!raf) raf = requestAnimationFrame(paint); };
+  paint(); // 第一个字到之前先显示"正在想…"
 
   const ctx = buildContext(chat.messages.slice(0, -1));
   if (nudge) {
@@ -1669,6 +1784,8 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
     await saveChat(chat);
     node.innerHTML = botInner(bot, i, false);
     addCopyButtons(node);
+    // 这一轮记了账，上面那条的"编辑"要收起来
+    if (touchesLedger(bot)) renderThread();
     const c0 = chat;
     for (const card of bot.cards) if (card.type === 'img' && card.status === 'new') drawCard(c0, card);
     setBusy(false);
@@ -2728,6 +2845,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(
 
 $('list').addEventListener('click', e => {
   const d = e.target.closest('[data-del]'); if (d) { deleteChat(d.dataset.del); return; }
+  const r = e.target.closest('[data-ren]'); if (r) { renameChat(r.dataset.ren); return; }
   const s = e.target.closest('[data-id]'); if (s) openChat(s.dataset.id);
 });
 $('list').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.id) openChat(e.target.dataset.id); });
@@ -2737,6 +2855,8 @@ $('thread').addEventListener('click', e => {
   if (e.target.id === 'olderBtn') { showAll = true; renderThread(); return; }
   const c = e.target.closest('[data-copy]'); if (c) { copyText(stripTags(chat.messages[+c.dataset.copy]?.content), c); return; }
   const s = e.target.closest('[data-speak]'); if (s) { speak(chat.messages[+s.dataset.speak]?.content || ''); return; }
+  if (e.target.closest('[data-regen]')) { regenerate(); return; }
+  const ed = e.target.closest('[data-edit]'); if (ed) { startEdit(+ed.dataset.edit); return; }
   const hb = e.target.closest('[data-hbopen]'); if (hb) { openHongbao(hb.dataset.hbopen); return; }
   const sv = e.target.closest('[data-saveimg]');
   if (sv) { imgSrc(sv.dataset.saveimg).then(url => { if (!url) return; const a = document.createElement('a'); a.href = url; a.download = `知言-${ymd(new Date())}.png`; a.target = '_blank'; a.click(); }); return; }
@@ -2754,12 +2874,37 @@ input.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(hover: hover)').matches) { e.preventDefault(); submit(); }
 });
 function submit() {
-  const t = input.value, imgs = pendingImgs;
+  const t = input.value, imgs = pendingImgs, cutAt = editingAt;
+  if (cutAt >= 0 && !t.trim() && !imgs.length) return;
+  editingAt = -1; $('editBar').hidden = true;
   pendingImgs = []; renderAttach();
   input.value = ''; input.dispatchEvent(new Event('input'));
   $('actsRow').hidden = true; $('plusBtn').classList.remove('on');
-  send(t, imgs);
+  send(t, imgs, {}, { cutAt });
 }
+$('editCancel').onclick = cancelEdit;
+let searchTimer = 0;
+$('listSearch').addEventListener('input', e => { clearTimeout(searchTimer); const q = e.target.value; searchTimer = setTimeout(() => searchChats(q), 200); });
+$('topModel').addEventListener('change', async e => {
+  const [p, ...rest] = e.target.value.split('|');
+  if (controller || !PROVIDERS[p]) return;
+  settings.provider = p; settings.models[p] = rest.join('|');
+  await saveSettings(); renderShell();
+  toast(`换成 ${PROVIDERS[p].name} · ${model(p)}`);
+});
+// 键盘弹起：iOS 不缩布局视口，按可见区域的高度把整页收进来，输入框就不会被挡住
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  const fit = () => {
+    if (vv.scale > 1.01) return; // 双指放大时不跟着缩
+    document.documentElement.style.height = vv.height + 'px';
+    window.scrollTo(0, 0);
+    if (document.activeElement === input) $('scroll').scrollTop = $('scroll').scrollHeight;
+  };
+  vv.addEventListener('resize', fit);
+  fit();
+}
+window.addEventListener('load', () => { window.hljs?.configure({ ignoreUnescapedHTML: true }); highlightIn($('thread')); });
 $('sendBtn').onclick = () => { if (controller) controller.abort(); else submit(); };
 
 $('pAvPick').onclick = () => $('pAvFile').click();

@@ -1,6 +1,6 @@
 // 每次更新文件后把版本号 +1，手机上才会拿到新版本
-const CACHE = 'zhiyan-v13';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/marked.min.js', './vendor/purify.min.js',
+const CACHE = 'zhiyan-v14';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/marked.min.js', './vendor/purify.min.js', './vendor/highlight.min.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
