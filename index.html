@@ -68,6 +68,10 @@
   .item small { color: var(--muted); font-size: 11px; }
   .item .del, .item .ren { opacity: 0; border: 0; background: none; color: var(--muted); padding: 0 4px; }
   .item:hover .del, .item.on .del, .item:hover .ren, .item.on .ren { opacity: 1; }
+  .item .fav { font-style: normal; margin-right: 6px; }
+  .item .badge { flex: none; min-width: 18px; height: 18px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
+  .top .menu { position: relative; }
+  .top .menu .dot { position: absolute; top: 0; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
   .item .hit { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .search { width: 100%; margin-top: 8px; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 12px; font-size: 14px; outline: 0; }
   .search:focus { border-color: var(--accent); }
@@ -468,6 +472,7 @@
     <div class="brand"><span class="av" id="sideAv" style="width:36px;height:36px;font-size:16px"></span><span><b id="sideName">知言</b><small id="sideDays"></small></span></div>
     <button class="new" id="newBtn" type="button">＋ 新对话</button>
     <input class="search" id="listSearch" type="search" placeholder="搜索聊天记录" aria-label="搜索聊天记录" autocomplete="off">
+    <div id="friendSide" hidden><div class="list-title">好友</div><div class="list" id="friendChats"></div></div>
     <div class="list-title">聊天记录</div>
     <div class="list" id="list"></div>
     <div class="side-foot"><b id="memCount">0</b><span>条长期记忆<br>跨对话陪着你</span></div>
@@ -477,7 +482,7 @@
 
   <main class="main">
     <div class="top">
-      <button class="menu" id="menuBtn" type="button" aria-label="打开侧边栏">☰</button>
+      <button class="menu" id="menuBtn" type="button" aria-label="打开侧边栏">☰<i class="dot" id="menuDot" hidden></i></button>
       <button class="who" type="button" data-open="personaSheet"><span class="av" id="topAv" style="width:34px;height:34px;font-size:15px"></span><span style="min-width:0"><b id="topName">知言</b><small id="topSub"></small></span></button>
       <select class="top-model" id="topModel" aria-label="切换模型"></select>
       <button class="icon-btn" type="button" id="newBtn2" aria-label="新对话">＋</button>
@@ -511,12 +516,6 @@
         <p class="eyebrow">Moments</p>
         <h1 id="feedTitle">TA 的动态</h1>
         <p class="lead">你们各自的生活。你发的 TA 看得到，会来评论；TA 发的你也可以点赞、评论。点一条评论可以直接回复它。</p>
-        <details class="friends" id="friendsBox">
-          <summary>好友 · <span id="friendsSum"></span></summary>
-          <label class="toggle" style="margin-top:10px"><span>让好友也发朋友圈、来评论<small>好友每天最多发 2 条；会用你聊天的 Key，配图用画图的 Key</small></span><input type="checkbox" id="friendsOn"></label>
-          <div id="friendList"></div>
-          <div class="row" style="margin-top:8px"><button class="btn" type="button" id="friendAdd">＋ 加一个好友</button><button class="btn" type="button" id="friendPost">让好友发一条</button></div>
-        </details>
         <div class="row" style="margin-bottom:14px"><button class="btn primary" type="button" id="feedNew">让 TA 发一条</button><button class="btn" type="button" id="feedMine">我也发一条</button><span class="status" id="feedStatus"></span></div>
         <div id="feedCompose" hidden style="margin-bottom:14px">
           <label class="field">说点什么<textarea id="feedText" maxlength="300" placeholder="此刻在想什么…"></textarea></label>
@@ -538,6 +537,7 @@
         <p class="lead">新对话也不会忘记。聊天时 TA 会自己把值得记的事存进来，你说"请记住……"也可以，随时能查看、添加或删除。</p>
         <div class="memrow"><input id="memInput" maxlength="200" placeholder="例如：我住在杭州，喜欢猫" aria-label="新的记忆"><button class="btn primary" type="button" id="memAdd">记住</button></div>
         <div class="stack" id="memList"></div>
+        <div id="fmemBox" hidden><h2>好友记得的</h2><p class="lead">每个好友只记得和你私聊时说过的事，TA 和别的好友都看不到。</p><div class="stack" id="fmemList"></div></div>
         <h2>导入与备份</h2>
         <p class="note">「导出全部数据」会存一个备份文件，照片、TA 画的图、音乐都在里面（API Key 不在）。换手机时用「导入 / 恢复备份」选它就能全部恢复。<br>也支持 Claude 或 ChatGPT 官方导出的 conversations.json，导入后出现在聊天记录里。</p>
         <div class="row" style="margin-top:10px"><button class="btn" type="button" id="importPick">导入 / 恢复备份</button><input type="file" id="importFile" accept=".json,application/json" hidden><button class="btn" type="button" id="exportBtn">导出全部数据</button><button class="btn danger" type="button" id="memClear">清空记忆</button></div>
@@ -576,6 +576,12 @@
           <button type="button" data-open="setSheet" data-focus="fOpener"><span class="mi">☾</span>TA 主动找你<span class="go">›</span></button>
           <button type="button" id="meExport"><span class="mi">⇩</span>备份全部数据<span class="go">›</span></button>
         </div>
+        <details class="friends" id="friendsBox" style="text-align:left">
+          <summary>好友 · <span id="friendsSum"></span><small style="display:block;margin-top:2px">像微信好友一样：在聊天列表里点他们就能私聊，各自记得和你聊过的事</small></summary>
+          <label class="toggle" style="margin-top:10px"><span>让好友发朋友圈、来评论、偶尔找你聊天<small>朋友圈每天最多 2 条，主动私聊每天最多 1 次；会用你聊天的 Key，配图用画图的 Key</small></span><input type="checkbox" id="friendsOn"></label>
+          <div id="friendList"></div>
+          <div class="row" style="margin-top:8px"><button class="btn" type="button" id="friendAdd">＋ 加一个好友</button><button class="btn" type="button" id="friendPost">让好友发一条</button></div>
+        </details>
         <p class="foot-note">知言 · 陪伴版</p>
       </div></div>
     </section>
@@ -812,7 +818,7 @@
     <label class="field">Worker 地址<input id="fPushUrl" inputmode="url" autocomplete="off" placeholder="https://zhiyan.你的名字.workers.dev"></label>
     <label class="field">Worker 密码<input id="fPushPass" type="password" autocomplete="off"></label>
     <div class="grid2">
-      <label class="field">每天主动找你<select id="fPushPerDay"><option value="0">不主动</option><option value="1">1 次</option><option value="2">2 次</option><option value="3">3 次</option><option value="4">4 次</option></select></label>
+      <label class="field">每天主动找你<select id="fPushPerDay"><option value="0">不主动</option><option value="1">1 次</option><option value="2">2 次</option><option value="3">3 次</option><option value="4">4 次</option><option value="6">6 次</option><option value="8">8 次</option><option value="10">10 次</option><option value="12">12 次</option></select></label>
       <label class="field">日程提醒<select id="fPushRemind"><option value="1">到点前提醒</option><option value="0">不提醒</option></select></label>
       <label class="field">最早<input id="fPushFrom" type="time"></label>
       <label class="field">最晚<input id="fPushTo" type="time"></label>
@@ -1099,6 +1105,13 @@ function renderShell() {
   $('memCount').textContent = memories.length;
   $('sideModel').textContent = configured[settings.provider] ? `${PROVIDERS[settings.provider].name} · ${model()}` : '还没有配置 Key';
   $('input').placeholder = `和${P().name || 'TA'}说点什么…`;
+  const fr = chatFriend();
+  if (fr) {
+    $('topAv').innerHTML = esc(fr.emoji);
+    $('topName').textContent = fr.name;
+    $('topSub').textContent = '好友';
+    $('input').placeholder = `和${fr.name}说点什么…`;
+  }
   fillTopModel();
 }
 function fillTopModel() {
@@ -1157,6 +1170,12 @@ function renderHome() {
   const empty = !(chat?.messages?.length);
   $('home').hidden = !empty;
   if (!empty) return;
+  const fr = chatFriend();
+  if (fr) {
+    $('home').innerHTML = `<span class="av" style="width:72px;height:72px;font-size:30px">${esc(fr.emoji)}</span><h1>${esc(fr.name)}</h1><p>${esc(fr.traits)}</p>
+      <div class="chips">${['在干嘛呢', '今天好累', '最近在追什么剧', '推荐点好吃的'].map(c => `<button class="chip" type="button">${esc(c)}</button>`).join('')}</div>`;
+    return;
+  }
   const nick = P().nick ? `，${esc(P().nick)}` : '';
   const days = daysTogether();
   const up = upcoming(7).slice(0, 4);
@@ -1292,7 +1311,8 @@ function botInner(m, i, streaming) {
   const body = streaming && !m.content && !m.thinking
     ? '<div class="waiting">正在想<i></i><i></i><i></i></div>'
     : streaming || stripTags(m.content) ? `<div class="body${streaming ? ' cursor' : ''}">${md(stripTags(m.content))}</div>` : '';
-  return `<span class="av">${avatarInner()}</span><div>${pro}${think}${body}${cards}${err}${acts}</div>`;
+  const fr = chatFriend();
+  return `<span class="av">${fr ? esc(fr.emoji) : avatarInner()}</span><div>${pro}${think}${body}${cards}${err}${acts}</div>`;
 }
 
 function userHTML(m, i) {
@@ -1337,7 +1357,7 @@ async function openChat(id) {
   currentId = id; showAll = false;
   chat = id ? await DB.get('chat:' + id) : null;
   if (id && !chat) { index = index.filter(c => c.id !== id); await saveIndex(); currentId = null; }
-  renderList(); renderShell(); renderThread();
+  renderList(); renderFriendChats(); renderShell(); renderThread();
   $('app').classList.remove('open');
   showTab('chat');
 }
@@ -1348,6 +1368,7 @@ async function deleteChat(id) {
   if (currentId === id) await openChat(null); else renderList();
 }
 function touch(c) {
+  if (c.friend) return; // 好友私聊不进 TA 的聊天列表
   const prev = index.find(x => x.id === c.id) || {};
   index = [{ ...prev, id: c.id, title: c.title, updated: Date.now(), source: c.source || '' }, ...index.filter(x => x.id !== c.id)];
 }
@@ -1423,7 +1444,8 @@ function buildContext(msgs) {
     if (withImg >= 2) { m.content = (m.content ? m.content + '\n' : '') + `（发过 ${m.imgs.length} 张照片）`; delete m.imgs; }
     else withImg++;
   }
-  return { system: systemPrompt(), messages: list };
+  const fr = chatFriend();
+  return { system: fr ? friendChatSystem(fr) : systemPrompt(), messages: list };
 }
 
 async function* lines(res) {
@@ -1810,7 +1832,7 @@ async function syncPush(extra = {}, keepalive = false) {
     perDay: ps.perDay, remind: ps.remind, from: ps.from, to: ps.to,
     tz: -new Date().getTimezoneOffset(), lastActive: Date.now(), fp, ...extra,
   };
-  const src = chat?.messages?.length ? chat : index[0] ? await DB.get('chat:' + index[0].id) : null;
+  const src = chat?.messages?.length && !chat.friend ? chat : index[0] ? await DB.get('chat:' + index[0].id) : null;
   if (src?.messages?.length) {
     body.recent = normalize(src.messages).slice(-12).map(x => ({ r: x.role === 'user' ? 'u' : 'a', t: x.content.slice(0, 300) }));
     body.recentAt = index.find(c => c.id === src.id)?.updated || Date.now();
@@ -1859,7 +1881,7 @@ async function pullInbox() {
 }
 // TA 主动说话时放进哪段聊天：正开着的，或两天内聊过的最近一段；都没有就新开一段
 async function proactiveTarget() {
-  if (chat) return chat;
+  if (chat && !chat.friend) return chat;
   const recent = index[0] && Date.now() - (index[0].updated || 0) < 2 * 864e5 ? await DB.get('chat:' + index[0].id) : null;
   return recent || { id: uid(), title: `${P().name || 'TA'}来找你`, messages: [] };
 }
@@ -1890,6 +1912,7 @@ async function maybeOpener() {
 }
 async function onReturn() {
   setTimeout(maybeAutoPost, 4000);
+  setTimeout(maybeFriendPing, 9000);
   const got = await pullInbox();
   if (!got) await maybeOpener(); else markActive();
 }
@@ -1913,9 +1936,11 @@ async function send(text, imgs = [], extra = {}, { cutAt = -1 } = {}) {
     openSheet('setSheet'); toast(`先填 ${PROVIDERS[provider].name} 的 API Key`); return;
   }
 
+  if (chat?.friend && !chatFriend()) { toast('这个好友已经删掉了'); return; }
   const remember = text.match(/^(?:请)?记住[:：,，\s]*([\s\S]+)/);
   if (remember) {
-    if (addMemory(remember[1])) await DB.set('memories', memories);
+    if (chat?.friend) { if (addFriendMemory(chat.friend, remember[1])) await DB.set('friendMem', friendMem); }
+    else if (addMemory(remember[1])) await DB.set('memories', memories);
   }
 
   // 编辑重发沿用原来那条的编号：同一轮里已经执行过的标签不会再执行一遍
@@ -1923,6 +1948,7 @@ async function send(text, imgs = [], extra = {}, { cutAt = -1 } = {}) {
   if (cutAt >= 0 && chat) chat.messages.length = cutAt;
   if (!chat) { chat = { id: uid(), title: (text || '一张照片').slice(0, 24), messages: [] }; currentId = chat.id; }
   chat.messages.push({ role: 'user', id: turnId, content: text, ...(imgs.length ? { imgs } : {}), ...extra });
+  if (chat.friend) noteFriendMsg(chat.friend, text || '[照片]');
   if (imgs.length && cutAt < 0) {
     for (const u of imgs) album.unshift({ id: uid(), kind: 'photo', data: u, at: Date.now(), cap: text.slice(0, 20) });
     DB.set('album', album).catch(() => toast('手机存储快满了，照片可能没存进相册'));
@@ -1959,6 +1985,7 @@ function cancelEdit() {
 // 生成一条 TA 的回复。nudge：没有新的用户消息时，给模型的一句占位；extra：附加到系统提示里的要求。
 async function runBot(provider, key, { nudge = '', extra = '', proactive = false } = {}) {
   const bot = { role: 'assistant', content: '', thinking: '' };
+  const fid = chat?.friend || '';
   if (proactive) { bot.proactive = true; bot.at = Date.now(); }
   chat.messages.push(bot);
   touch(chat);
@@ -1997,7 +2024,7 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
   } finally {
     if (raf) cancelAnimationFrame(raf);
     controller = null;
-    try { await applyTags(bot); } catch (e) { console.warn(e); bot.content = stripTags(bot.content); bot.cards ||= []; }
+    try { if (fid) await applyFriendTags(bot, fid); else await applyTags(bot); } catch (e) { console.warn(e); bot.content = stripTags(bot.content); bot.cards ||= []; }
     if (!bot.content && !bot.thinking && !bot.error && !bot.cards.length) bot.error = '已停止。';
     // TA 主动开口没成功（网络、额度……）：悄悄撤掉这条，不在聊天里留一条报错，也不挡着正常聊天
     const dropped = proactive && !bot.content && !bot.cards.length;
@@ -2013,6 +2040,7 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
       }
     }
     if (chat) await saveChat(chat).catch(() => toast('手机存储出错，这条可能没存上'));
+    if (fid && bot.content) noteFriendMsg(fid, bot.content);
     if (!dropped) { node.innerHTML = botInner(bot, i, false); addCopyButtons(node); }
     // 这一轮记了账，上面那条的"编辑"要收起来
     if (touchesLedger(bot) || dropped) renderThread();
@@ -2308,6 +2336,10 @@ function renderMemories() {
   $('memList').innerHTML = memories.length ? memories.map(m => `
     <div class="li"><span>${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-memdel="${m.id}" aria-label="删除">✕</button></div>`).join('')
     : `<div class="empty"><i>✦</i><b>还没有长期记忆</b>告诉${esc(P().name || 'TA')}第一件关于你的事吧</div>`;
+  const fl = friends().filter(f => friendMem[f.id]?.length);
+  $('fmemBox').hidden = !fl.length;
+  $('fmemList').innerHTML = fl.map(f => `<p class="note" style="margin:10px 0 4px">${esc(f.emoji)} ${esc(f.name)}</p>` + friendMem[f.id].map(m =>
+    `<div class="li"><span>${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-fmemdel="${esc(f.id)}|${m.id}" aria-label="删除">✕</button></div>`).join('')).join('');
 }
 
 
@@ -2606,7 +2638,7 @@ function feedSystem() {
   const now = new Date(), nick = P().nick || '对方';
   const posts = taPosts().slice(0, 5).map(p => '- ' + p.text).join('\n');
   const mine = moments.filter(p => p.who === 'me').slice(0, 3).map(p => '- ' + p.text + (p.img ? '（配了照片）' : '')).join('\n');
-  const recent = chat?.messages?.length ? normalize(chat.messages).slice(-6).map(m => `${m.role === 'user' ? nick : '你'}：${m.content.slice(0, 120)}`).join('\n') : '';
+  const recent = chat?.messages?.length && !chat.friend ? normalize(chat.messages).slice(-6).map(m => `${m.role === 'user' ? nick : '你'}：${m.content.slice(0, 120)}`).join('\n') : '';
   return [personaBrief(), `现在是 ${ymd(now)} 周${WEEK[now.getDay()]} ${pad(now.getHours())}:${pad(now.getMinutes())}。`, lifeContext(), recent ? '你们最近聊的：\n' + recent : '', posts ? '你最近发过的动态（别重复）：\n' + posts : '', mine ? `${nick}最近发的动态：\n` + mine : ''].filter(Boolean).join('\n\n');
 }
 async function newPost(auto = false) {
@@ -2705,7 +2737,7 @@ function whoAv(w) {
 }
 function friendSystem(f) {
   const now = new Date(), nick = P().nick || '对方';
-  return [`你是${f.name}，${f.traits}。你是${nick}的网友，平时在朋友圈里互相点赞评论，关系不错但不算特别亲密。${nick}的${P().rel || '伴侣'}叫${P().name || '阿言'}，你也认识。`,
+  return [`你是${f.name}，${f.traits}。你是${nick}的微信好友，平时会私聊，也在朋友圈里互相点赞评论，关系不错。${nick}的${P().rel || '伴侣'}叫${P().name || '阿言'}，你也认识。`,
     '说话像真人发朋友圈、回评论：口语、简短、有自己的性格，不要客套，不要自称 AI。',
     `现在是 ${ymd(now)} 周${WEEK[now.getDay()]} ${pad(now.getHours())}:${pad(now.getMinutes())}。`].join('\n');
 }
@@ -2761,7 +2793,102 @@ function renderFriends() {
   $('friendsSum').textContent = list.length ? list.map(f => f.emoji + f.name).join(' ') : '还没有';
   $('friendList').innerHTML = list.map((f, i) => `<div class="fr"><input data-fe="${i}" value="${esc(f.emoji)}" maxlength="2" aria-label="头像 emoji"><input data-fn="${i}" value="${esc(f.name)}" maxlength="8" aria-label="名字"><input class="ft" data-ft="${i}" value="${esc(f.traits)}" maxlength="60" aria-label="性格"><button type="button" data-fdel="${i}" aria-label="删除好友">✕</button></div>`).join('');
 }
-async function saveFriends(list) { settings.friends = list; await saveSettings(); renderFriends(); renderFeed(); }
+async function saveFriends(list) { settings.friends = list; await saveSettings(); renderFriends(); renderFeed(); renderFriendChats(); }
+
+// ---- 好友私聊（像微信联系人）----
+// 每个好友一段固定的聊天，存在 chat:f-<好友id>，带 friend 字段，不进 TA 的聊天列表（index）。
+// 每个好友有自己的记忆 friendMem[<好友id>]，只在和 TA 私聊时用；TA 和别的好友都看不到。
+// friendMeta[<好友id>] = { last, at, unread }：列表上显示的最后一句和未读数，省得每次把整段聊天读出来。
+const FMEM_MAX = 40;
+let friendMem = {}, friendMeta = {};
+const fchatId = fid => 'f-' + fid;
+const chatFriend = () => chat?.friend ? friendOf('f:' + chat.friend) : null;
+function addFriendMemory(fid, text) {
+  const t = String(text || '').trim().slice(0, 200), k = memKey(t);
+  const list = friendMem[fid] ||= [];
+  if (!k || list.some(m => memKey(m.text) === k)) return false;
+  list.unshift({ id: uid(), text: t, created: new Date().toLocaleDateString('zh-CN') });
+  if (list.length > FMEM_MAX) list.length = FMEM_MAX;
+  return true;
+}
+function friendChatSystem(f) {
+  const nick = P().nick || '对方', mem = friendMem[f.id] || [];
+  return [friendSystem(f),
+    `现在是你和${nick}的私聊，像微信聊天：口语、简短，一次一两句到几句，有自己的生活、脾气和情绪，不用什么都顺着对方。`,
+    mem.length ? `你记得的关于${nick}的事（只有你知道）：\n` + mem.slice(0, 30).map(m => '- ' + m.text).join('\n') : '',
+    `聊到值得以后记得的事（对方的近况、喜好、烦心事），在回复末尾加 [[记住|一句完整的话]]，对方看不到。别的标记都不要用。`,
+  ].filter(Boolean).join('\n\n');
+}
+function noteFriendMsg(fid, text, unread = false) {
+  const m = friendMeta[fid] ||= { unread: 0 };
+  m.last = String(text || '').slice(0, 40); m.at = Date.now();
+  if (unread) m.unread = (m.unread || 0) + 1;
+  DB.set('friendMeta', friendMeta).catch(() => {});
+  renderFriendChats();
+}
+function renderFriendChats() {
+  const list = friends();
+  $('friendSide').hidden = !list.length;
+  $('friendChats').innerHTML = list.map(f => {
+    const m = friendMeta[f.id] || {};
+    return `<div class="item${chat?.friend === f.id ? ' on' : ''}"><span data-fid="${esc(f.id)}" role="button" tabindex="0"><i class="fav">${esc(f.emoji)}</i>${esc(f.name)}<small class="hit">${esc(m.last || f.traits)}</small></span>${m.unread ? `<b class="badge">${m.unread}</b>` : ''}</div>`;
+  }).join('');
+  $('menuDot').hidden = !list.some(f => friendMeta[f.id]?.unread);
+}
+async function openFriend(fid) {
+  if (controller) return;
+  const f = friendOf('f:' + fid); if (!f) return;
+  if (editingAt >= 0) cancelEdit();
+  const id = fchatId(fid);
+  chat = await DB.get('chat:' + id).catch(() => null) || { id, friend: fid, title: f.name, messages: [] };
+  chat.title = f.name;
+  currentId = id; showAll = false;
+  if (friendMeta[fid]?.unread) { friendMeta[fid].unread = 0; DB.set('friendMeta', friendMeta).catch(() => {}); }
+  renderList(); renderFriendChats(); renderShell(); renderThread();
+  $('app').classList.remove('open');
+  showTab('chat');
+}
+// 好友的回复只认 [[记住]]，记进这个好友自己的记忆；别的标签（红包、记账……）一律去掉不执行
+async function applyFriendTags(bot, fid) {
+  const cards = [];
+  let changed = false;
+  for (const [, type, body] of (bot.content || '').matchAll(TAG_RE)) {
+    if (type !== '记住') continue;
+    const text = body.split('|').map(x => x.trim()).join('|').slice(0, 200);
+    if (!text) continue;
+    if (addFriendMemory(fid, text)) changed = true;
+    cards.push({ type: 'mem', text });
+  }
+  bot.content = stripTags(bot.content);
+  bot.cards = cards;
+  if (changed) await DB.set('friendMem', friendMem).catch(() => toast('手机存储出错，好友的记忆可能没存上'));
+}
+// 回到 App 时：白天、今天还没有好友主动找过你，三成概率挑一个好友来私聊一句（优先聊过天的）。不走推送
+const FRIEND_PRESSURE = /在吗|在不在|怎么不理|不理我|为什么不回|怎么不回|不回我|理理我|人呢/;
+async function maybeFriendPing() {
+  const h = new Date().getHours();
+  if (!friendsOn() || h < 10 || h >= 22 || controller || Math.random() > 0.3) return;
+  const last = await DB.get('friendPingAt').catch(() => 0);
+  if (last && ymd(new Date(last)) === ymd(new Date())) return;
+  const list = friends();
+  const talked = list.filter(f => friendMeta[f.id]?.at);
+  const pool = talked.length && Math.random() < 0.7 ? talked : list;
+  const f = pool[Math.floor(Math.random() * pool.length)];
+  if (!f || !(await loadSecret(settings.provider))) return;
+  await DB.set('friendPingAt', Date.now()).catch(() => {});
+  try {
+    const c = await DB.get('chat:' + fchatId(f.id)).catch(() => null) || { id: fchatId(f.id), friend: f.id, title: f.name, messages: [] };
+    const nick = P().nick || '对方';
+    const hist = normalize(c.messages).slice(-8).map(m => `${m.role === 'user' ? nick : '你'}：${m.content.slice(0, 120)}`).join('\n');
+    let text = stripTags(await complete(friendChatSystem(f), `${hist ? '你们之前的私聊：\n' + hist + '\n\n' : ''}你突然想找${nick}聊两句：分享你刚遇到的事，或者接着之前聊的问一句近况。像发微信，一两句。不要问"在吗"，不要抱怨对方不找你。只输出消息本身。`))
+      .replace(/^["“「]+|["”」]+$/g, '').trim().slice(0, 200);
+    if (!text || FRIEND_PRESSURE.test(text)) return;
+    c.messages.push({ role: 'assistant', content: text, proactive: true, at: Date.now() });
+    await saveChat(c);
+    if (chat?.id === c.id && !controller) { chat = c; renderThread(); noteFriendMsg(f.id, text); }
+    else { noteFriendMsg(f.id, text, true); toast(`${f.name} 给你发了消息`); }
+  } catch { /* 好友没找成就算了，不打扰 */ }
+}
 
 // ---- 我也发一条 ----
 // 第一张沿用老的键 img:<id>，老帖子不用迁移；第二张起是 img:<id>:1、img:<id>:2…
@@ -2890,7 +3017,9 @@ async function openHongbao(id) {
 async function celebrate(w) {
   toast(`「${w.name}」攒够啦 🎉`);
   markFirst('saved', `第一次一起攒够：${w.name}`);
-  closeSheets(); showTab('chat');
+  closeSheets();
+  if (chat?.friend) await openChat(index[0]?.id || null);
+  showTab('chat');
   await send(`（我们一起攒的「${w.name}」攒够啦！¥${money(w.price)}）`, [], { evt: true });
 }
 
@@ -2919,9 +3048,9 @@ function showTab(t) {
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
   if (t === 'mem') { renderMemories(); renderRecall(); }
-  else if (t === 'feed') { renderFeed(); renderFriends(); feedSeen = Date.now(); DB.set('feedSeen', feedSeen).catch(() => {}); updateFeedDot(); maybeAutoPost(); maybeFriendPost(); }
+  else if (t === 'feed') { renderFeed(); feedSeen = Date.now(); DB.set('feedSeen', feedSeen).catch(() => {}); updateFeedDot(); maybeAutoPost(); maybeFriendPost(); }
   else if (t === 'life') renderLife();
-  else if (t === 'me') renderMe();
+  else if (t === 'me') { renderMe(); renderFriends(); }
 }
 // 第四项以 # 开头的是 App 里的面板，其余是外部链接
 const SERVICES = [
@@ -3153,7 +3282,9 @@ $('xferGo').onclick = async () => {
   wallet.log.unshift({ id: uid(), at: Date.now(), kind: 'from_you', amount, note });
   await DB.set('wallet', wallet);
   markFirst('xfer', `第一次给 TA 转账 ¥${money(amount)}`);
-  closeSheets(); showTab('chat');
+  closeSheets();
+  if (chat?.friend) await openChat(index[0]?.id || null); // 转账是给 TA 的，不发到好友私聊里
+  showTab('chat');
   await send(`（给你转账 ¥${money(amount)}${note ? '，备注：' + note : ''}）`, [], { xfer: { amount, note } });
 };
 $('walXfer').onclick = () => openSheet('xferSheet');
@@ -3319,6 +3450,14 @@ $('list').addEventListener('click', e => {
   const d = e.target.closest('[data-del]'); if (d) { deleteChat(d.dataset.del); return; }
   const r = e.target.closest('[data-ren]'); if (r) { renameChat(r.dataset.ren); return; }
   const s = e.target.closest('[data-id]'); if (s) openChat(s.dataset.id);
+});
+$('friendChats').addEventListener('click', e => { const s = e.target.closest('[data-fid]'); if (s) openFriend(s.dataset.fid); });
+$('friendChats').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.fid) openFriend(e.target.dataset.fid); });
+$('fmemList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-fmemdel]'); if (!b) return;
+  const [fid, id] = b.dataset.fmemdel.split('|');
+  friendMem[fid] = (friendMem[fid] || []).filter(m => m.id !== id);
+  await DB.set('friendMem', friendMem); renderMemories();
 });
 $('list').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.id) openChat(e.target.dataset.id); });
 
@@ -3584,6 +3723,8 @@ $('diaryList').addEventListener('click', async e => {
     feedSeen = await DB.get('feedSeen') || 0;
     wallet = fixWallet({ ...wallet, ...(await DB.get('wallet') || {}) });
     opLog = await DB.get('opLog').catch(() => null) || [];
+    friendMem = await DB.get('friendMem').catch(() => null) || {};
+    friendMeta = await DB.get('friendMeta').catch(() => null) || {};
     tracks = await DB.get('tracks') || [];
     for (const p of Object.keys(PROVIDERS)) configured[p] = !!(await loadSecret(p));
     await loadWall();
