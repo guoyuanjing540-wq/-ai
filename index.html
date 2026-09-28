@@ -158,6 +158,16 @@
   .links a { text-decoration: none; font-size: 12px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 10px; }
   .links a:hover { border-color: var(--accent); color: var(--accent); }
   .gname { font-size: 12px; color: var(--muted); margin: 0 0 3px 2px; }
+  .utable { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .utable th, .utable td { text-align: right; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+  .utable th:first-child, .utable td:first-child { text-align: left; }
+  .utable .bar { height: 4px; border-radius: 2px; background: var(--accent); opacity: .7; margin-top: 3px; }
+  .ubig { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .recap { max-width: 760px; margin: 0 auto 14px; }
+  .mcats { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .mcats button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 4px 11px; font-size: 13px; color: var(--muted); }
+  .mcats button.on { border-color: var(--accent); color: var(--accent); }
+  .mcat { font-style: normal; font-size: 11px; color: var(--accent); border: 1px solid currentColor; border-radius: 6px; padding: 0 5px; margin-right: 6px; vertical-align: 1px; }
   .links.src { align-items: center; } .links.src small { color: var(--muted); font-size: 12px; }
 
   .player { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom)); width: min(420px, calc(100% - 32px)); background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 4px 18px rgba(0,0,0,.08); padding: 6px 8px 6px 16px; display: flex; align-items: center; gap: 8px; font-size: 14px; z-index: 5; }
@@ -542,6 +552,7 @@
         <h2>TA 记得的事</h2>
         <p class="lead">新对话也不会忘记。聊天时 TA 会自己把值得记的事存进来，你说"请记住……"也可以，随时能查看、添加或删除。</p>
         <div class="memrow"><input id="memInput" maxlength="200" placeholder="例如：我住在杭州，喜欢猫" aria-label="新的记忆"><button class="btn primary" type="button" id="memAdd">记住</button></div>
+        <div class="mcats" id="memCats"></div>
         <div class="stack" id="memList"></div>
         <div id="fmemBox" hidden><h2>好友记得的</h2><p class="lead">每个好友只记得和你私聊时说过的事，TA 和别的好友都看不到。点一条可以修改，也能手动加。</p><div class="stack" id="fmemList"></div></div>
         <h2>导入与备份</h2>
@@ -580,7 +591,10 @@
           <button type="button" data-open="setSheet"><span class="mi">⚙</span>模型与 Key<span class="go">›</span></button>
           <button type="button" data-open="setSheet" data-focus="fImg"><span class="mi">✎</span>画图<span class="go">›</span></button>
           <button type="button" data-open="setSheet" data-focus="fOpener"><span class="mi">☾</span>TA 主动找你<span class="go">›</span></button>
+          <button type="button" data-open="usageSheet"><span class="mi">▤</span>用量统计<small>每家模型用了多少 token</small><span class="go">›</span></button>
+          <button type="button" id="cardImport"><span class="mi">⇪</span>导入角色卡<small>酒馆 JSON / PNG 角色卡都行</small><span class="go">›</span></button>
           <button type="button" id="meExport"><span class="mi">⇩</span>备份全部数据<span class="go">›</span></button>
+          <input type="file" id="cardFile" accept=".json,.png,application/json,image/png" hidden>
         </div>
         <details class="friends" id="friendsBox" style="text-align:left">
           <summary>好友 · <span id="friendsSum"></span><small style="display:block;margin-top:2px">像微信好友一样：在聊天列表里点他们就能私聊，各自记得和你聊过的事。点头像能改资料、换照片</small></summary>
@@ -620,14 +634,14 @@
       <label class="field">TA 怎么叫你<input id="pNick" maxlength="12" placeholder="比如：宝贝、小鱼"></label>
       <label class="field">在一起的日子<input id="pSince" type="date"></label>
     </div>
-    <label class="field">TA 的性格和说话方式<textarea id="pTraits" maxlength="400"></textarea></label>
+    <label class="field">TA 的性格和说话方式<textarea id="pTraits" maxlength="2000"></textarea></label>
     <div class="field">主题色<div class="swatches" id="swatches"></div></div>
     <div class="field">风格<div class="seg two" id="styleSeg"><button type="button" data-style="glass">毛玻璃</button><button type="button" data-style="plain">简洁</button></div></div>
     <div class="field" id="wallField">背景图
       <div class="row"><button class="btn" type="button" id="wallPick">换一张照片</button><button class="btn" type="button" id="wallReset">用默认渐变</button><input type="file" id="wallFile" accept="image/*" hidden></div>
       <label class="field" style="margin-top:6px">背景模糊<input class="range" type="range" id="wallBlur" min="0" max="40" step="2"></label>
     </div>
-    <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="pSave">保存</button></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn" type="button" id="pExport">导出角色卡</button><button class="btn primary" type="button" id="pSave">保存</button></div>
   </div>
 </div>
 
@@ -643,10 +657,30 @@
       </div>
     </div>
     <label class="field">名字<input id="fsName" maxlength="8"></label>
-    <label class="field">性格和说话方式<textarea id="fsTraits" maxlength="200"></textarea></label>
+    <label class="field">性格和说话方式<textarea id="fsTraits" maxlength="1000"></textarea></label>
     <label class="field">用哪个模型<select id="fsModel"></select></label>
     <div class="field">记得的关于你的事<div class="stack" id="fsMem"></div><div class="row"><button class="btn" type="button" id="fsMemAdd">＋ 加一条</button></div></div>
-    <div class="row" style="justify-content:space-between"><button class="btn" type="button" id="fsDel">删除好友</button><span class="row"><button class="btn" type="button" id="fsChat">发消息</button><button class="btn primary" type="button" id="fsSave">保存</button></span></div>
+    <div class="row" style="justify-content:space-between"><button class="btn" type="button" id="fsDel">删除好友</button><span class="row"><button class="btn" type="button" id="fsExport">导出</button><button class="btn" type="button" id="fsChat">发消息</button><button class="btn primary" type="button" id="fsSave">保存</button></span></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="cardSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="导入角色卡">
+    <header><h2>导入角色卡</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="persona-top"><span class="av" id="cardAv"></span><div class="stack" style="flex:1"><b id="cardName"></b><small class="note" id="cardMeta"></small></div></div>
+    <div class="field">人设<div class="note" id="cardTraits" style="white-space:pre-wrap;max-height:180px;overflow:auto"></div></div>
+    <div class="field" id="cardFirstBox">开场白<div class="note" id="cardFirst" style="white-space:pre-wrap;max-height:120px;overflow:auto"></div></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn" type="button" id="cardAsTa">换成 TA 的设定</button><button class="btn primary" type="button" id="cardAsFriend">加成好友</button></div>
+    <p class="note">加成好友：多一个好友，有开场白的话 TA 会先私聊你一句。换成 TA 的设定：TA 的名字、性格、头像都换成这张卡的，聊天记录和记忆不动。</p>
+  </div>
+</div>
+
+<div class="sheet-bg" id="usageSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="用量统计">
+    <header><h2>用量统计</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="seg" id="usageSeg"><button type="button" data-days="1">今天</button><button type="button" data-days="7">7 天</button><button type="button" data-days="30">30 天</button></div>
+    <div id="usageBody" style="margin-top:12px"></div>
+    <p class="note">只统计这台设备上、从这个版本开始的请求（聊天、动态、群聊、整理提要都算）。1 千 token 大约是 700～1000 个汉字。花了多少钱以各家后台为准，DeepSeek 可以在设置里查余额。</p>
   </div>
 </div>
 
@@ -830,7 +864,8 @@
     <label class="field" id="fModelCustom" hidden>模型名<input id="fModel" placeholder="照着供应商文档填"></label>
     <label class="field">接口地址（一般不用改；连不上时换成自己的转发地址）<input id="fBase"></label>
     <label class="field">额外要求（可不填）<textarea id="fSys" placeholder="例如：回复短一点。"></textarea></label>
-    <label class="toggle"><span>参考记忆<small>每次聊天都带上"记忆"里的内容</small></span><input type="checkbox" id="fMem"></label>
+    <label class="toggle"><span>参考记忆<small>每次聊天挑和正在聊的最相关的 40 条记忆带上</small></span><input type="checkbox" id="fMem"></label>
+    <label class="toggle"><span>长聊天自动整理前情提要<small>一段聊天很长时，把前面的内容整理成一段提要，TA 不会忘了很久以前聊过的事，也更省钱；大约每 30 条多花一次请求</small></span><input type="checkbox" id="fSum"></label>
     <label class="toggle"><span>参考心情日记<small>聊天时参考最近三条日记</small></span><input type="checkbox" id="fDiary"></label>
     <label class="toggle"><span>自动朗读回答<small>用手机自带的中文语音</small></span><input type="checkbox" id="fSpeak"></label>
     <h3>画图</h3>
@@ -1016,20 +1051,41 @@ const saveChat = c => DB.set('chat:' + c.id, c);
 
 // ════════════════ [Memory] ════════════════
 // 记忆的增删都走这里
-// 记忆总量封顶，免得上下文越滚越长、越聊越贵。
-// MEM_USE 与 MEM_MAX 保持一致：记忆页列出多少条，TA 就知道多少条，
-// 否则用户会看着一条明明在列表里的记忆，纳闷 TA 为什么不记得。
-const MEM_MAX = 80, MEM_USE = MEM_MAX;
+// 记忆最多存 MEM_MAX 条。每次聊天不再全部塞给 TA，而是挑和现在聊的最相关的 MEM_PICK 条（pickMemories），
+// 记得再多也不会越聊越贵；记忆页上会写清楚"TA 每次会挑最相关的 40 条"，免得以为 TA 忘了。
+const MEM_MAX = 200, MEM_PICK = 40;
 const memKey = s => s.replace(/[\s，。,.、!！?？~～"'"'']/g, '').toLowerCase();
+// 自动分类：看关键词，不额外发请求。按顺序匹配，第一个对上的算数
+const MEM_CATS = [
+  ['重要日子', /生日|纪念日|周年|忌日|\d+\s*月\s*\d+\s*[日号]|每年|过年|中秋|国庆/],
+  ['人和事', /妈|爸|弟|妹|姐|哥|外婆|奶奶|爷爷|姥|小姨|舅|姑|叔|表|堂|朋友|闺蜜|老板|同事|合伙|对象|男朋友|女朋友|顾客|客人/],
+  ['喜好', /喜欢|爱吃|爱喝|爱看|爱听|不吃|不喝|讨厌|最爱|偏爱|口味|害怕|怕/],
+  ['习惯', /每天|总是|经常|习惯|睡前|起床|通常|一般|老是|作息/],
+  ['近况', /最近|正在|在忙|打算|计划|准备|这周|这个月|下周|下个月|明天|要去|还款|考试|搬家/],
+];
+const MEM_CAT_NAMES = [...MEM_CATS.map(c => c[0]), '其他'];
+const memCat = t => (MEM_CATS.find(([, re]) => re.test(t)) || ['其他'])[0];
 function addMemory(text) {
   const t = String(text || '').trim().slice(0, 200);
   const k = memKey(t);
   if (!k || memories.some(m => memKey(m.text) === k)) return false;
-  memories.unshift({ id: uid(), text: t, created: new Date().toLocaleDateString('zh-CN') });
+  memories.unshift({ id: uid(), text: t, cat: memCat(t), created: new Date().toLocaleDateString('zh-CN') });
   if (memories.length > MEM_MAX) memories.length = MEM_MAX;
   return true;
 }
-const memoryLines = (n = MEM_USE) => memories.slice(0, n).map(m => '- ' + m.text.slice(0, 100)).join('\n');
+// 挑记忆：两个字两个字地比，和最近的聊天重合越多越靠前；最新记的几条、重要日子稍微加分
+const grams = s => { const t = memKey(s), g = new Set(); for (let i = 0; i < t.length - 1; i++) g.add(t.slice(i, i + 2)); return g; };
+function pickMemories(query = '', n = MEM_PICK) {
+  if (memories.length <= n || !query) return memories.slice(0, n);
+  const q = grams(query);
+  return memories.map((m, i) => {
+    const g = grams(m.text); let hit = 0;
+    for (const x of g) if (q.has(x)) hit++;
+    return { m, s: hit / Math.sqrt(g.size || 1) + (i < 8 ? 0.6 : 0) + ((m.cat || memCat(m.text)) === '重要日子' ? 0.3 : 0) };
+  }).sort((a, b) => b.s - a.s).slice(0, n).map(x => x.m);
+}
+const memoryLines = (query = '') => pickMemories(query).map(m => '- ' + m.text.slice(0, 100)).join('\n')
+  + (memories.length > MEM_PICK ? '\n（你记得的事不止这些，这里是和现在聊的最相关的几条。）' : '');
 
 // ════════════════ [UI] ════════════════
 // 通用界面：提示、主题、头像、聊天列表、消息气泡、卡片
@@ -1378,7 +1434,8 @@ function renderThread() {
   renderHome();
   const msgs = chat?.messages || [];
   const start = showAll ? 0 : Math.max(0, msgs.length - RENDER_LIMIT);
-  let html = start > 0 ? `<button class="older" type="button" id="olderBtn">显示更早的 ${start} 条消息</button>` : '';
+  let html = chat?.summary && chat.sumUpTo ? `<details class="think recap"><summary>📜 前情提要 · 前 ${chat.sumUpTo} 条 TA 已经整理好记着了</summary><div>${esc(chat.summary)}</div></details>` : '';
+  html += start > 0 ? `<button class="older" type="button" id="olderBtn">显示更早的 ${start} 条消息</button>` : '';
   for (let i = start; i < msgs.length; i++) {
     const m = msgs[i];
     html += m.role === 'user'
@@ -1426,7 +1483,7 @@ function touch(c) {
 
 // ════════════════ [AI Provider] ════════════════
 // 拼系统提示、整理上下文、把消息转成各家接口的格式、流式读取回复
-function systemPrompt() {
+function systemPrompt(query = '') {
   const p = P();
   const nick = p.nick || '你';
   const now = new Date();
@@ -1450,7 +1507,7 @@ function systemPrompt() {
 - 对方问的事你不确定、或者需要最新的信息（新闻、比赛、价格、上映、政策、某家店某个东西现在怎么样……），或者对方让你查一下、搜一下：这条回复只写一个 [[搜索|关键词]]，别的什么都不写。App 会去搜，把结果拿给你，你再正常回答。关键词写成搜索引擎用的短词组，30 个字以内。闲聊、说心事、你本来就知道的，不要搜` : ''}
 只在确实需要时用，一次最多 5 个。标记之外照常说话。${imgReady ? '' : '\n你现在还不能画图；对方让你画的话，温柔地告诉对方在设置的"画图"里填一个智谱的 Key 就可以（免费）。'}`,
   ];
-  if (settings.memoryOn && memories.length) parts.push(`你记得的关于${nick}的事：\n` + memoryLines());
+  if (settings.memoryOn && memories.length) parts.push(`你记得的关于${nick}的事：\n` + memoryLines(query));
   const up = upcoming(14);
   if (up.length) parts.push('日历里接下来的安排：\n' + up.map(e => `- ${e.on}${e.time ? ' ' + e.time : ''} ${e.title}`).join('\n'));
   const life = lifeContext();
@@ -1486,7 +1543,9 @@ function normalize(msgs) {
   return out;
 }
 function buildContext(msgs) {
-  let list = normalize(msgs).slice(-40);
+  // 前面整理过前情提要的部分（sumUpTo 之前）不再原样发，换成系统提示里的一段提要
+  const cut = Math.min(chat?.sumUpTo || 0, msgs.length);
+  let list = normalize(msgs.slice(cut)).slice(-40);
   let total = list.reduce((n, m) => n + m.content.length, 0);
   while (total > 60000 && list.length > 1) total -= list.shift().content.length;
   while (list.length && list[0].role !== 'user') list.shift();
@@ -1499,7 +1558,10 @@ function buildContext(msgs) {
     else withImg++;
   }
   const fr = chatFriend();
-  return { system: fr ? friendChatSystem(fr) : systemPrompt(), messages: list };
+  const query = list.slice(-6).map(m => m.content).join('\n');
+  let system = fr ? friendChatSystem(fr) : systemPrompt(query);
+  if (cut && chat?.summary) system += `\n\n你们更早之前聊过的（前情提要，自然地记着就好，不用复述）：\n${chat.summary}`;
+  return { system, messages: list };
 }
 
 async function* lines(res) {
@@ -1576,7 +1638,7 @@ async function* streamChat({ provider, key, system, messages, signal, think = fa
     const post = (mm, msgs) => fetch(base(provider) + '/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-      body: JSON.stringify({ model: mm, stream: true, messages: [{ role: 'system', content: system }, ...msgs], ...thinkParams(provider, mm, think) }),
+      body: JSON.stringify({ model: mm, stream: true, messages: [{ role: 'system', content: system }, ...msgs], ...thinkParams(provider, mm, think), ...(provider === 'openai' || provider === 'deepseek' ? { stream_options: { include_usage: true } } : {}) }),
       signal,
     });
     res = !dsEyes && hasImg && provider === 'deepseek'
@@ -1590,11 +1652,17 @@ async function* streamChat({ provider, key, system, messages, signal, think = fa
     }
   }
   if (!res.ok) throw httpError(res.status, await res.text(), p.name);
+  // 顺手记下这次用了多少 token（各家都在流的最后几段里给），按了停止也记已经用掉的
+  let tin = 0, tout = 0;
+  try {
   for await (const line of lines(res)) {
     if (!line.startsWith('data:')) continue;
     const data = line.slice(5).trim();
     if (!data || data === '[DONE]') continue;
     let j; try { j = JSON.parse(data); } catch { continue; }
+    if (p.kind === 'anthropic' && j.type === 'message_start') { const u = j.message?.usage || {}; tin = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0); }
+    if (p.kind === 'anthropic' && j.usage?.output_tokens) tout = j.usage.output_tokens;
+    if (p.kind !== 'anthropic' && j.usage) { tin = j.usage.prompt_tokens || tin; tout = j.usage.completion_tokens || tout; }
     if (p.kind === 'anthropic') {
       if (j.type === 'content_block_delta') {
         if (j.delta?.type === 'text_delta') yield { text: j.delta.text };
@@ -1611,6 +1679,7 @@ async function* streamChat({ provider, key, system, messages, signal, think = fa
       if (d.content) yield { text: d.content };
     }
   }
+  } finally { recordUsage(provider, m, tin, tout); }
 }
 
 // ════════════════ [状态操作] ════════════════
@@ -1766,6 +1835,150 @@ async function applyTags(bot) {
     if (!changed[flag]) continue;
     try { await DB.set(key, val()); } catch { toast('手机存储出错，有些记录可能没存上'); }
   }
+}
+
+// ════════════════ [用量统计] ════════════════
+// usage = { 'YYYY-MM-DD': { '供应商|模型': { i: 输入 token, o: 输出 token, n: 次数 } } }，只留最近 60 天
+let usage = {}, usageDays = 1;
+function recordUsage(provider, m, tin, tout) {
+  if (!tin && !tout) return;
+  const day = usage[ymd(new Date())] ||= {};
+  const u = day[provider + '|' + m] ||= { i: 0, o: 0, n: 0 };
+  u.i += tin; u.o += tout; u.n++;
+  const keep = ymd(new Date(Date.now() - 60 * 864e5));
+  for (const d of Object.keys(usage)) if (d < keep) delete usage[d];
+  DB.set('usage', usage).catch(() => {});
+}
+const kTok = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n);
+function renderUsage(days = 1) {
+  usageDays = days;
+  for (const b of $('usageSeg').children) b.classList.toggle('on', +b.dataset.days === days);
+  const from = ymd(new Date(Date.now() - (days - 1) * 864e5));
+  const sum = {};
+  for (const [d, row] of Object.entries(usage)) if (d >= from) for (const [k, u] of Object.entries(row)) {
+    const t = sum[k] ||= { i: 0, o: 0, n: 0 }; t.i += u.i; t.o += u.o; t.n += u.n;
+  }
+  const rows = Object.entries(sum).sort((a, b) => (b[1].i + b[1].o) - (a[1].i + a[1].o));
+  if (!rows.length) { $('usageBody').innerHTML = '<p class="note">这段时间还没有记录。</p>'; return; }
+  const all = rows.reduce((t, [, u]) => ({ i: t.i + u.i, o: t.o + u.o, n: t.n + u.n }), { i: 0, o: 0, n: 0 });
+  const top = rows[0][1].i + rows[0][1].o;
+  $('usageBody').innerHTML = `<div class="row" style="gap:18px;margin-bottom:10px"><span><small class="note">一共</small><div class="ubig">${kTok(all.i + all.o)}</div></span><span><small class="note">请求</small><div class="ubig">${all.n}</div></span></div>
+    <div style="overflow-x:auto"><table class="utable"><thead><tr><th>模型</th><th>次数</th><th>输入</th><th>输出</th></tr></thead><tbody>${rows.map(([k, u]) => {
+      const [p, m] = k.split('|');
+      return `<tr><td>${esc(m)}<small class="note" style="display:block">${esc(PROVIDERS[p]?.name || p)}</small><div class="bar" style="width:${Math.max(4, Math.round((u.i + u.o) / top * 100))}%"></div></td><td>${u.n}</td><td>${kTok(u.i)}</td><td>${kTok(u.o)}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+// ════════════════ [角色卡] ════════════════
+// 兼容 SillyTavern（酒馆）的角色卡：chara_card_v2 / v3 的 JSON，或者把 JSON 藏在 PNG 里（tEXt 块，关键字 chara / ccv3）。
+// 导入可以"加成好友"或"换成 TA 的设定"；导出成 chara_card_v2 的 JSON，知言自己的字段放在 extensions.zhiyan 里，导回来不丢。
+let cardDraft = null;
+function pngCardText(buf) {
+  const b = new Uint8Array(buf), dv = new DataView(buf);
+  if (b[0] !== 0x89 || b[1] !== 0x50) return '';
+  let found = '';
+  for (let at = 8; at + 8 <= b.length;) {
+    const len = dv.getUint32(at), type = String.fromCharCode(...b.slice(at + 4, at + 8));
+    if (type === 'tEXt') {
+      const body = b.slice(at + 8, at + 8 + len), z = body.indexOf(0);
+      const key = new TextDecoder('latin1').decode(body.slice(0, z));
+      if (key === 'ccv3' || (key === 'chara' && !found)) found = new TextDecoder('latin1').decode(body.slice(z + 1));
+    }
+    if (type === 'IEND') break;
+    at += 12 + len;
+  }
+  if (!found) return '';
+  const bin = atob(found), bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+function parseCard(obj) {
+  const d = obj?.data && typeof obj.data === 'object' ? obj.data : obj;
+  const name = String(d?.name || d?.char_name || '').trim();
+  if (!name) throw new Error('这个文件里没找到角色卡');
+  const z = d.extensions?.zhiyan || {};
+  const fill = t => String(t || '').replace(/\{\{user\}\}|<USER>/gi, P().nick || '你').replace(/\{\{char\}\}|<BOT>/gi, name).trim();
+  const traits = z.kind ? fill(d.description) : [fill(d.description), d.personality && '性格：' + fill(d.personality), d.scenario && '背景：' + fill(d.scenario)].filter(Boolean).join('\n');
+  return { name, traits, first: fill(d.first_mes || d.char_greeting), avatar: z.avatar || '', emoji: z.emoji || '', rel: z.rel, nick: z.nick, since: z.since };
+}
+async function readCardFile(file) {
+  const isPng = /png$/i.test(file.type) || /\.png$/i.test(file.name);
+  const text = isPng ? pngCardText(await file.arrayBuffer()) : await file.text();
+  if (!text) throw new Error('这张图片里没有角色卡信息');
+  let obj; try { obj = JSON.parse(text); } catch { throw new Error('角色卡格式不对，读不出来'); }
+  const card = parseCard(obj);
+  if (isPng && !card.avatar) card.avatar = await resizeImage(file).catch(() => '');
+  cardDraft = card;
+  $('cardAv').innerHTML = card.avatar ? `<img src="${esc(card.avatar)}" alt="">` : esc(card.emoji || card.name.slice(0, 1));
+  $('cardName').textContent = card.name;
+  $('cardMeta').textContent = `人设 ${card.traits.length} 字${card.first ? ' · 有开场白' : ''}`;
+  $('cardTraits').textContent = card.traits.slice(0, 1200) || '（没写人设）';
+  $('cardFirstBox').hidden = !card.first;
+  $('cardFirst').textContent = card.first.slice(0, 600);
+}
+async function importCardAsFriend() {
+  const c = cardDraft; if (!c) return;
+  if (friends().length >= 8) { toast('最多 8 个好友，先删一个'); return; }
+  const f = { id: uid(), name: c.name.slice(0, 8), emoji: c.emoji || '🙂', traits: c.traits.slice(0, 1000) || '随和，爱分享日常' };
+  if (c.avatar) f.avatar = c.avatar;
+  await saveFriends([...friends(), f]);
+  if (c.first) {
+    await saveChat({ id: fchatId(f.id), friend: f.id, title: f.name, messages: [{ role: 'assistant', content: c.first.slice(0, 1000), proactive: true, at: Date.now() }] });
+    noteFriendMsg(f.id, c.first, true);
+  }
+  cardDraft = null; closeSheets();
+  toast(`${f.name} 成了你的好友${c.first ? '，还给你发了条消息' : ''}`);
+}
+async function importCardAsTa() {
+  const c = cardDraft; if (!c) return;
+  if (!confirm(`把 TA 换成「${c.name}」？名字、性格、头像会换掉，聊天记录和记忆都留着。`)) return;
+  const p = P();
+  settings.persona = { ...p, name: c.name.slice(0, 12), traits: c.traits.slice(0, 2000) || p.traits, avatar: c.avatar || p.avatar,
+    ...(c.rel ? { rel: c.rel } : {}), ...(c.nick ? { nick: c.nick } : {}), ...(c.since ? { since: c.since } : {}) };
+  await saveSettings();
+  cardDraft = null; closeSheets(); renderShell(); renderThread();
+  toast(`TA 现在是${settings.persona.name}了`);
+}
+function exportCard(who) {
+  const f = friendOf(who), p = P();
+  const name = f ? f.name : p.name || '阿言';
+  const z = f ? { kind: 'friend', emoji: f.emoji, avatar: f.avatar || '' } : { kind: 'ta', rel: p.rel, nick: p.nick, since: p.since, avatar: p.avatar || '' };
+  const card = { spec: 'chara_card_v2', spec_version: '2.0', data: {
+    name, description: f ? f.traits : p.traits, personality: '', scenario: '', first_mes: '', mes_example: '',
+    creator_notes: '从知言导出', system_prompt: '', post_history_instructions: '', alternate_greetings: [], tags: ['知言'],
+    creator: '', character_version: '1', extensions: { zhiyan: z } } };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(card, null, 1)], { type: 'application/json' }));
+  a.download = `角色卡-${name}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+// ════════════════ [前情提要] ════════════════
+// 一段聊天超过 SUM_EVERY 条没整理，就把除了最近 SUM_KEEP 条之外的部分，连同旧提要，合成一段新的"前情提要"。
+// 存在聊天上：summary（提要）、sumUpTo（整理到第几条）。buildContext 只发 sumUpTo 之后的消息 + 提要，
+// TA 就能记得很久以前聊过的事，也不会越聊越贵。每整理一次多花一个请求，大约每 30 条一次。群聊不整理。
+const SUM_EVERY = 60, SUM_KEEP = 30;
+let summarizing = false;
+async function maybeSummarize(c) {
+  if (summarizing || settings.summaryOn === false || !c || c.group) return;
+  const from = Math.min(c.sumUpTo || 0, c.messages.length);
+  if (c.messages.length - from < SUM_EVERY) return;
+  const to = c.messages.length - SUM_KEEP;
+  const f = c.friend ? friendOf('f:' + c.friend) : null;
+  const nick = P().nick || '对方', name = f ? f.name : (P().name || 'TA');
+  const part = normalize(c.messages.slice(from, to)).map(m => `${m.role === 'user' ? nick : name}：${m.content.slice(0, 400)}`).join('\n');
+  if (!part) return;
+  summarizing = true;
+  try {
+    const text = await complete('你负责给一段聊天写"前情提要"，给之后的自己看，好接着聊下去。',
+      `${c.summary ? '之前的提要：\n' + c.summary + '\n\n' : ''}接下来的聊天记录：\n${part}\n\n把两部分合成一份新的前情提要，500 字以内，按时间顺序：发生过的事、${nick}说过的重要信息和心情、你们的约定、还没聊完的话题。用第三人称写"${nick}"和"${name}"。只输出提要本身。`,
+      [], f ? 'f:' + f.id : 'ta');
+    if (!text) return;
+    c.summary = stripTags(text).slice(0, 1500); c.sumUpTo = to; c.sumAt = Date.now();
+    await saveChat(c);
+    if (chat === c) renderThread();
+  } catch { /* 没整理成就下次再说，不影响聊天 */ }
+  finally { summarizing = false; }
 }
 
 // ════════════════ [Vision] ════════════════
@@ -2212,6 +2425,7 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
     for (const card of bot.cards) if (card.type === 'img' && card.status === 'new') drawCard(c0, card);
     setBusy(false);
     if ((settings.speak || inCall) && bot.content) speak(bot.content);
+    if (c0 && bot.content) setTimeout(() => maybeSummarize(c0), 1500);
   }
 }
 
@@ -2281,6 +2495,7 @@ function openSheet(id) {
     setSheet: () => fillSettings(settings.provider),
     diarySheet: renderDiary,
     personaSheet: fillPersona,
+    usageSheet: () => renderUsage(usageDays),
     calSheet: () => { calSel = ymd(new Date()); calMonth = new Date(); calMonth.setDate(1); renderCal(); },
     musicSheet: renderMusic,
     wishSheet: renderWishes,
@@ -2355,6 +2570,7 @@ function fillSettings(p) {
   $('fBase').value = settings.bases[p] || '';
   $('fBase').placeholder = PROVIDERS[p].base;
   $('fSys').value = settings.sys;
+  $('fSum').checked = settings.summaryOn !== false;
   $('fMem').checked = settings.memoryOn; $('fDiary').checked = settings.diaryOn; $('fSpeak').checked = settings.speak;
   $('setStatus').textContent = '';
   fillImgKey();
@@ -2391,6 +2607,7 @@ async function applySettings() {
   const b = $('fBase').value.trim();
   if (b) settings.bases[p] = b; else delete settings.bases[p];
   settings.sys = $('fSys').value;
+  settings.summaryOn = $('fSum').checked;
   settings.memoryOn = $('fMem').checked; settings.diaryOn = $('fDiary').checked; settings.speak = $('fSpeak').checked;
   settings.img = $('fImg').value;
   await applyPush();
@@ -2505,11 +2722,18 @@ function renderWishes() {
   }).join('') : '<p class="note">心愿单还是空的。</p>';
 }
 
+let memFilter = '';
 function renderMemories() {
   $('memCount').textContent = memories.length;
-  $('memEyebrow').textContent = settings.memoryOn ? 'Memory · On' : 'Memory · Off（设置里已关闭）';
-  $('memList').innerHTML = memories.length ? memories.map(m => `
-    <div class="li"><span data-memedit="${m.id}" role="button" tabindex="0" title="点一下修改">${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-memdel="${m.id}" aria-label="删除">✕</button></div>`).join('')
+  $('memEyebrow').textContent = (settings.memoryOn ? 'Memory · On' : 'Memory · Off（设置里已关闭）') + (memories.length > MEM_PICK ? ` · 共 ${memories.length} 条，聊天时挑最相关的 ${MEM_PICK} 条` : '');
+  const catOf = m => m.cat || memCat(m.text);
+  const counts = {}; for (const m of memories) counts[catOf(m)] = (counts[catOf(m)] || 0) + 1;
+  $('memCats').hidden = memories.length < 6;
+  $('memCats').innerHTML = [['', `全部 ${memories.length}`], ...MEM_CAT_NAMES.filter(c => counts[c]).map(c => [c, `${c} ${counts[c]}`])]
+    .map(([c, label]) => `<button type="button" data-mcat="${esc(c)}" class="${memFilter === c ? 'on' : ''}">${esc(label)}</button>`).join('');
+  const shown = memFilter ? memories.filter(m => catOf(m) === memFilter) : memories;
+  $('memList').innerHTML = shown.length ? shown.map(m => `
+    <div class="li"><span data-memedit="${m.id}" role="button" tabindex="0" title="点一下修改"><i class="mcat">${esc(catOf(m))}</i>${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-memdel="${m.id}" aria-label="删除">✕</button></div>`).join('')
     : `<div class="empty"><i>✦</i><b>还没有长期记忆</b>告诉${esc(P().name || 'TA')}第一件关于你的事吧</div>`;
   const fl = friends();
   $('fmemBox').hidden = !fl.length;
@@ -3075,7 +3299,7 @@ async function saveFriendProfile() {
   const list = friends().map(f => ({ ...f })), f = list.find(x => x.id === fsId); if (!f) return;
   f.emoji = $('fsEmoji').value.trim() || '🙂';
   f.name = $('fsName').value.trim() || f.name;
-  f.traits = $('fsTraits').value.trim().slice(0, 200) || f.traits;
+  f.traits = $('fsTraits').value.trim().slice(0, 1000) || f.traits;
   if ($('fsModel').value) f.model = $('fsModel').value; else delete f.model;
   if (fsAv) f.avatar = fsAv; else delete f.avatar;
   await saveFriends(list);
@@ -3771,8 +3995,9 @@ $('memList').addEventListener('click', async e => {
   const s = e.target.closest('[data-memedit]'); if (!s) return;
   const m = memories.find(x => x.id === s.dataset.memedit); if (!m) return;
   const t = editText(m.text); if (!t || t === m.text) return;
-  m.text = t; await DB.set('memories', memories); renderMemories();
+  m.text = t; m.cat = memCat(t); await DB.set('memories', memories); renderMemories();
 });
+$('memCats').addEventListener('click', e => { const b = e.target.closest('[data-mcat]'); if (!b) return; memFilter = b.dataset.mcat; renderMemories(); });
 $('fmemList').addEventListener('click', async e => {
   const add = e.target.closest('[data-fmemadd]');
   if (add) {
@@ -3925,6 +4150,18 @@ $('pSave').onclick = async () => {
   await saveSettings();
   closeSheets(); renderShell(); renderThread(); toast('保存好了');
 };
+
+$('cardImport').onclick = () => $('cardFile').click();
+$('cardFile').onchange = async e => {
+  const f = e.target.files?.[0]; e.target.value = '';
+  if (!f) return;
+  try { await readCardFile(f); openSheet('cardSheet'); } catch (err) { toast(err.message || '这张角色卡读不了'); }
+};
+$('cardAsFriend').onclick = importCardAsFriend;
+$('cardAsTa').onclick = importCardAsTa;
+$('pExport').onclick = () => exportCard('ta');
+$('fsExport').onclick = () => exportCard('f:' + fsId);
+$('usageSeg').addEventListener('click', e => { const b = e.target.closest('[data-days]'); if (b) renderUsage(+b.dataset.days); });
 
 $('pushOn').onclick = async () => {
   $('pushStatus').textContent = '正在开启…';
@@ -4086,6 +4323,7 @@ $('diaryList').addEventListener('click', async e => {
     wallet = fixWallet({ ...wallet, ...(await DB.get('wallet') || {}) });
     opLog = await DB.get('opLog').catch(() => null) || [];
     friendMem = await DB.get('friendMem').catch(() => null) || {};
+    usage = await DB.get('usage').catch(() => null) || {};
     friendMeta = await DB.get('friendMeta').catch(() => null) || {};
     tracks = await DB.get('tracks') || [];
     for (const p of Object.keys(PROVIDERS)) configured[p] = !!(await loadSecret(p));
