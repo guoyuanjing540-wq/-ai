@@ -155,6 +155,7 @@
   .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .links a { text-decoration: none; font-size: 12px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 10px; }
   .links a:hover { border-color: var(--accent); color: var(--accent); }
+  .gname { font-size: 12px; color: var(--muted); margin: 0 0 3px 2px; }
   .links.src { align-items: center; } .links.src small { color: var(--muted); font-size: 12px; }
 
   .player { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom)); width: min(420px, calc(100% - 32px)); background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 4px 18px rgba(0,0,0,.08); padding: 6px 8px 6px 16px; display: flex; align-items: center; gap: 8px; font-size: 14px; z-index: 5; }
@@ -439,6 +440,7 @@
   .friends .fr { display: grid; grid-template-columns: 44px 1fr 1fr auto; gap: 6px; align-items: center; margin-top: 8px; }
   .friends .fr input { min-width: 0; border: 1px solid var(--line); background: var(--ground); border-radius: 10px; padding: 6px 8px; font-size: 14px; }
   .friends .fr button { border: 0; background: none; color: var(--muted); }
+  .friends .fr .fm { grid-column: 1 / -1; min-width: 0; border: 1px solid var(--line); background: var(--ground); color: var(--muted); border-radius: 10px; padding: 6px 8px; font-size: 13px; }
   @media (max-width: 520px) { .friends .fr { grid-template-columns: 44px 1fr auto; } .friends .fr .ft { grid-column: 2 / -1; } }
   .cmt-in { display: flex; gap: 8px; }
   .cmt-in input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--ground); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
@@ -539,7 +541,7 @@
         <p class="lead">新对话也不会忘记。聊天时 TA 会自己把值得记的事存进来，你说"请记住……"也可以，随时能查看、添加或删除。</p>
         <div class="memrow"><input id="memInput" maxlength="200" placeholder="例如：我住在杭州，喜欢猫" aria-label="新的记忆"><button class="btn primary" type="button" id="memAdd">记住</button></div>
         <div class="stack" id="memList"></div>
-        <div id="fmemBox" hidden><h2>好友记得的</h2><p class="lead">每个好友只记得和你私聊时说过的事，TA 和别的好友都看不到。</p><div class="stack" id="fmemList"></div></div>
+        <div id="fmemBox" hidden><h2>好友记得的</h2><p class="lead">每个好友只记得和你私聊时说过的事，TA 和别的好友都看不到。点一条可以修改，也能手动加。</p><div class="stack" id="fmemList"></div></div>
         <h2>导入与备份</h2>
         <p class="note">「导出全部数据」会存一个备份文件，照片、TA 画的图、音乐都在里面（API Key 不在）。换手机时用「导入 / 恢复备份」选它就能全部恢复。<br>也支持 Claude 或 ChatGPT 官方导出的 conversations.json，导入后出现在聊天记录里。</p>
         <div class="row" style="margin-top:10px"><button class="btn" type="button" id="importPick">导入 / 恢复备份</button><input type="file" id="importFile" accept=".json,application/json" hidden><button class="btn" type="button" id="exportBtn">导出全部数据</button><button class="btn danger" type="button" id="memClear">清空记忆</button></div>
@@ -1113,6 +1115,12 @@ function renderShell() {
   $('memCount').textContent = memories.length;
   $('sideModel').textContent = configured[settings.provider] ? `${PROVIDERS[settings.provider].name} · ${model()}` : '还没有配置 Key';
   $('input').placeholder = `和${P().name || 'TA'}说点什么…`;
+  if (chat?.group) {
+    $('topAv').innerHTML = '👥';
+    $('topName').textContent = '群聊';
+    $('topSub').textContent = [P().name || 'TA', ...friends().map(f => f.name)].join('、');
+    $('input').placeholder = '在群里说点什么…提到谁的名字，谁就先回';
+  }
   const fr = chatFriend();
   if (fr) {
     $('topAv').innerHTML = esc(fr.emoji);
@@ -1125,8 +1133,9 @@ function renderShell() {
 function fillTopModel() {
   const sel = $('topModel');
   const ready = Object.keys(PROVIDERS).filter(p => configured[p]);
-  sel.hidden = !ready.length;
-  if (!ready.length) return;
+  // 群聊里大家各用各的；好友单独选了模型时，顶上这个切的是 TA 的，就先藏起来免得看错
+  sel.hidden = !ready.length || !!chat?.group || !!chatFriend()?.model;
+  if (sel.hidden) return;
   sel.innerHTML = ready.map(p => {
     const list = PROVIDERS[p].models.includes(model(p)) ? PROVIDERS[p].models : [model(p), ...PROVIDERS[p].models];
     return `<optgroup label="${esc(PROVIDERS[p].name)}">${list.map(m => `<option value="${p}|${esc(m)}">${esc(m)}</option>`).join('')}</optgroup>`;
@@ -1178,6 +1187,11 @@ function renderHome() {
   const empty = !(chat?.messages?.length);
   $('home').hidden = !empty;
   if (!empty) return;
+  if (chat?.group) {
+    $('home').innerHTML = `<span class="av" style="width:72px;height:72px;font-size:30px">👥</span><h1>群聊</h1><p>你、${esc(P().name || 'TA')}，还有 ${esc(friends().map(f => f.name).join('、') || '好友们')}。说一句，大家接着聊；提到谁的名字，谁就先回。</p>
+      <div class="chips">${['大家晚上吃什么', '今天店里好忙', `${P().name || 'TA'}，他们欺负我`, '推荐个电视剧'].map(c => `<button class="chip" type="button">${esc(c)}</button>`).join('')}</div>`;
+    return;
+  }
   const fr = chatFriend();
   if (fr) {
     $('home').innerHTML = `<span class="av" style="width:72px;height:72px;font-size:30px">${esc(fr.emoji)}</span><h1>${esc(fr.name)}</h1><p>${esc(fr.traits)}</p>
@@ -1314,7 +1328,7 @@ function botInner(m, i, streaming) {
   const think = m.thinking ? `<details class="think"${streaming && !m.content ? ' open' : ''}><summary>TA 在想…</summary><div>${esc(m.thinking)}</div></details>` : '';
   const cards = m.cards?.length ? `<div class="cards">${m.cards.map(cardHTML).join('')}</div>` : '';
   const err = m.error ? `<p class="err">${esc(m.error)}</p>` : '';
-  const redo = !streaming && i === chat.messages.length - 1 && turnRedoable() ? `<button type="button" data-regen>${m.error ? '重试' : '重新生成'}</button>` : '';
+  const redo = !streaming && !chat.group && i === chat.messages.length - 1 && turnRedoable() ? `<button type="button" data-regen>${m.error ? '重试' : '重新生成'}</button>` : '';
   const react = !streaming && m.reaction ? `<button type="button" class="react" data-unreact="${i}" aria-label="取消表情">${m.reaction}</button>` : '';
   const acts = streaming ? '' : `${react}<div class="acts"><button type="button" data-react="${i}" aria-label="回应一个表情">☺</button><button type="button" data-copy="${i}">复制</button>${'speechSynthesis' in window ? `<button type="button" data-speak="${i}">朗读</button>` : ''}${redo}</div>`;
   const pro = m.proactive ? `<div class="pro">${m.kind === 'remind' ? '提醒你' : '主动找你'} · ${new Date(m.at || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>` : '';
@@ -1323,8 +1337,9 @@ function botInner(m, i, streaming) {
     : streaming && !m.content && !m.thinking
     ? '<div class="waiting">正在想<i></i><i></i><i></i></div>'
     : streaming || stripTags(m.content) ? `<div class="body${streaming ? ' cursor' : ''}">${md(stripTags(m.content))}</div>` : '';
-  const fr = chatFriend();
   const src = m.sources?.length ? `<div class="links src"><small>搜到的：</small>${m.sources.map((s, k) => link(`${k + 1}. ${s.title.slice(0, 16) || '来源'}`, s.link)).join('')}</div>` : '';
+  if (chat?.group) return `<span class="av">${whoAv(m.who || 'ta')}</span><div><div class="gname">${esc(whoName(m.who || 'ta'))}</div>${think}${body}${err}${acts}</div>`;
+  const fr = chatFriend();
   return `<span class="av">${fr ? esc(fr.emoji) : avatarInner()}</span><div>${pro}${think}${body}${src}${cards}${err}${acts}</div>`;
 }
 
@@ -1381,7 +1396,7 @@ async function deleteChat(id) {
   if (currentId === id) await openChat(null); else renderList();
 }
 function touch(c) {
-  if (c.friend) return; // 好友私聊不进 TA 的聊天列表
+  if (c.friend || c.group) return; // 好友私聊、群聊不进 TA 的聊天列表
   const prev = index.find(x => x.id === c.id) || {};
   index = [{ ...prev, id: c.id, title: c.title, updated: Date.now(), source: c.source || '' }, ...index.filter(x => x.id !== c.id)];
 }
@@ -1513,12 +1528,13 @@ function thinkParams(provider, m, on) {
   }
   return {};
 }
-async function* streamChat({ provider, key, system, messages, signal, think = false }) {
+async function* streamChat({ provider, key, system, messages, signal, think = false, mdl = '' }) {
   const p = PROVIDERS[provider];
   const hasImg = messages.some(x => x.imgs?.length);
   const raw = messages, dsEyes = hasImg && provider === 'deepseek' && !dsVisionDown;
   messages = raw.map(x => wire(x, provider));
-  const m = dsEyes ? DS_VISION : hasImg && provider === 'glm' && !/\dv/i.test(model(provider)) ? 'glm-4v-flash' : model(provider);
+  const base0 = mdl || model(provider);
+  const m = dsEyes ? DS_VISION : hasImg && provider === 'glm' && !/\dv/i.test(base0) ? 'glm-4v-flash' : base0;
   let res;
   if (p.kind === 'anthropic') {
     const headers = {
@@ -1547,7 +1563,7 @@ async function* streamChat({ provider, key, system, messages, signal, think = fa
     if (dsEyes && (res.status === 400 || res.status === 404)) {
       dsVisionDown = true;
       await describeInto(raw, signal).catch(e => { if (e.name === 'AbortError') throw e; });
-      res = await post(model(provider), raw.map(x => wire(x, provider, true)));
+      res = await post(base0, raw.map(x => wire(x, provider, true)));
     }
   }
   if (!res.ok) throw httpError(res.status, await res.text(), p.name);
@@ -1944,7 +1960,7 @@ async function syncPush(extra = {}, keepalive = false) {
     perDay: ps.perDay, remind: ps.remind, from: ps.from, to: ps.to,
     tz: -new Date().getTimezoneOffset(), lastActive: Date.now(), fp, ...extra,
   };
-  const src = chat?.messages?.length && !chat.friend ? chat : index[0] ? await DB.get('chat:' + index[0].id) : null;
+  const src = chat?.messages?.length && !chat.friend && !chat.group ? chat : index[0] ? await DB.get('chat:' + index[0].id) : null;
   if (src?.messages?.length) {
     body.recent = normalize(src.messages).slice(-12).map(x => ({ r: x.role === 'user' ? 'u' : 'a', t: x.content.slice(0, 300) }));
     body.recentAt = index.find(c => c.id === src.id)?.updated || Date.now();
@@ -1993,7 +2009,7 @@ async function pullInbox() {
 }
 // TA 主动说话时放进哪段聊天：正开着的，或两天内聊过的最近一段；都没有就新开一段
 async function proactiveTarget() {
-  if (chat && !chat.friend) return chat;
+  if (chat && !chat.friend && !chat.group) return chat;
   const recent = index[0] && Date.now() - (index[0].updated || 0) < 2 * 864e5 ? await DB.get('chat:' + index[0].id) : null;
   return recent || { id: uid(), title: `${P().name || 'TA'}来找你`, messages: [] };
 }
@@ -2041,8 +2057,7 @@ navigator.serviceWorker?.addEventListener('message', e => { if (e.data === 'inbo
 async function send(text, imgs = [], extra = {}, { cutAt = -1 } = {}) {
   text = text.trim();
   if ((!text && !imgs.length) || controller) return;
-  const provider = settings.provider;
-  const key = await loadSecret(provider);
+  const { provider, key, mdl } = await voiceFor(chat?.friend ? 'f:' + chat.friend : 'ta');
   if (!key) {
     if (imgs.length) { pendingImgs = imgs; renderAttach(); }
     openSheet('setSheet'); toast(`先填 ${PROVIDERS[provider].name} 的 API Key`); return;
@@ -2066,18 +2081,17 @@ async function send(text, imgs = [], extra = {}, { cutAt = -1 } = {}) {
     DB.set('album', album).catch(() => toast('手机存储快满了，照片可能没存进相册'));
     markFirst('photo', '第一次给 TA 发照片');
   }
-  markFirst('chat', '第一次和 TA 说话');
+  if (!chat.friend && !chat.group) markFirst('chat', '第一次和 TA 说话');
   markActive();
-  await runBot(provider, key);
+  if (chat.group) await runGroup(); else await runBot(provider, key, { mdl });
 }
 
 async function regenerate() {
   if (controller || !turnRedoable()) return;
-  const provider = settings.provider;
-  const key = await loadSecret(provider);
+  const { provider, key, mdl } = await voiceFor(chat?.friend ? 'f:' + chat.friend : 'ta');
   if (!key) { openSheet('setSheet'); toast(`先填 ${PROVIDERS[provider].name} 的 API Key`); return; }
   chat.messages.length = lastUserAt() + 1;
-  await runBot(provider, key);
+  await runBot(provider, key, { mdl });
 }
 function startEdit(i) {
   if (controller || i !== lastUserAt() || !turnRedoable()) return;
@@ -2095,7 +2109,7 @@ function cancelEdit() {
 }
 
 // 生成一条 TA 的回复。nudge：没有新的用户消息时，给模型的一句占位；extra：附加到系统提示里的要求。
-async function runBot(provider, key, { nudge = '', extra = '', proactive = false } = {}) {
+async function runBot(provider, key, { nudge = '', extra = '', proactive = false, mdl = '' } = {}) {
   const bot = { role: 'assistant', content: '', thinking: '' };
   const fid = chat?.friend || '';
   if (proactive) { bot.proactive = true; bot.at = Date.now(); }
@@ -2123,7 +2137,7 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
     // 最多两遍：第一遍 TA 要是只写了 [[搜索|关键词]]，就去搜，把结果放进系统提示，再答一遍。
     // 好友私聊、主动开口不搜；一轮只搜一次，第二遍再写搜索标记也不理（stripTags 会把它藏掉）
     for (let searched = false; ;) {
-      for await (const part of streamChat({ provider, key, ...ctx, signal: controller.signal, think: !!settings.think && !proactive })) {
+      for await (const part of streamChat({ provider, key, ...ctx, signal: controller.signal, think: !!settings.think && !proactive, mdl })) {
         if (part.text) bot.content += part.text;
         if (part.thinking) bot.thinking += part.thinking;
         if (part.stop === 'refusal') bot.error = '这个问题模型拒绝回答了。';
@@ -2472,12 +2486,12 @@ function renderMemories() {
   $('memCount').textContent = memories.length;
   $('memEyebrow').textContent = settings.memoryOn ? 'Memory · On' : 'Memory · Off（设置里已关闭）';
   $('memList').innerHTML = memories.length ? memories.map(m => `
-    <div class="li"><span>${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-memdel="${m.id}" aria-label="删除">✕</button></div>`).join('')
+    <div class="li"><span data-memedit="${m.id}" role="button" tabindex="0" title="点一下修改">${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-memdel="${m.id}" aria-label="删除">✕</button></div>`).join('')
     : `<div class="empty"><i>✦</i><b>还没有长期记忆</b>告诉${esc(P().name || 'TA')}第一件关于你的事吧</div>`;
-  const fl = friends().filter(f => friendMem[f.id]?.length);
+  const fl = friends();
   $('fmemBox').hidden = !fl.length;
-  $('fmemList').innerHTML = fl.map(f => `<p class="note" style="margin:10px 0 4px">${esc(f.emoji)} ${esc(f.name)}</p>` + friendMem[f.id].map(m =>
-    `<div class="li"><span>${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-fmemdel="${esc(f.id)}|${m.id}" aria-label="删除">✕</button></div>`).join('')).join('');
+  $('fmemList').innerHTML = fl.map(f => `<p class="note" style="margin:10px 0 4px">${esc(f.emoji)} ${esc(f.name)} <button class="btn" type="button" data-fmemadd="${esc(f.id)}" style="padding:2px 10px;font-size:12px">＋ 加一条</button></p>` + (friendMem[f.id] || []).map(m =>
+    `<div class="li"><span data-fmemedit="${esc(f.id)}|${m.id}" role="button" tabindex="0" title="点一下修改">${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-fmemdel="${esc(f.id)}|${m.id}" aria-label="删除">✕</button></div>`).join('')).join('');
 }
 
 
@@ -2764,19 +2778,19 @@ function ago(at) {
   const d = new Date(at);
   return m < 48 * 60 ? `昨天 ${pad(d.getHours())}:${pad(d.getMinutes())}` : `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 }
-async function complete(system, user, imgs = []) {
-  const provider = settings.provider, key = await loadSecret(provider);
+async function complete(system, user, imgs = [], who = 'ta') {
+  const { provider, key, mdl } = await voiceFor(who);
   if (!key) throw new Error(`先在设置里填 ${PROVIDERS[provider].name} 的 API Key`);
   let text = '';
   const msg = imgs.length ? { role: 'user', content: user, imgs } : { role: 'user', content: user };
-  for await (const part of streamChat({ provider, key, system, messages: [msg] })) if (part.text) text += part.text;
+  for await (const part of streamChat({ provider, key, system, messages: [msg], mdl })) if (part.text) text += part.text;
   return text.trim();
 }
 function feedSystem() {
   const now = new Date(), nick = P().nick || '对方';
   const posts = taPosts().slice(0, 5).map(p => '- ' + p.text).join('\n');
   const mine = moments.filter(p => p.who === 'me').slice(0, 3).map(p => '- ' + p.text + (p.img ? '（配了照片）' : '')).join('\n');
-  const recent = chat?.messages?.length && !chat.friend ? normalize(chat.messages).slice(-6).map(m => `${m.role === 'user' ? nick : '你'}：${m.content.slice(0, 120)}`).join('\n') : '';
+  const recent = chat?.messages?.length && !chat.friend && !chat.group ? normalize(chat.messages).slice(-6).map(m => `${m.role === 'user' ? nick : '你'}：${m.content.slice(0, 120)}`).join('\n') : '';
   return [personaBrief(), `现在是 ${ymd(now)} 周${WEEK[now.getDay()]} ${pad(now.getHours())}:${pad(now.getMinutes())}。`, lifeContext(), recent ? '你们最近聊的：\n' + recent : '', posts ? '你最近发过的动态（别重复）：\n' + posts : '', mine ? `${nick}最近发的动态：\n` + mine : ''].filter(Boolean).join('\n\n');
 }
 async function newPost(auto = false) {
@@ -2893,7 +2907,7 @@ async function friendPost(f, auto = false) {
   if (!auto) $('feedStatus').textContent = `${f.name} 正在写…`;
   try {
     const withImg = imgReady && Math.random() < 0.6;
-    let text = await complete(friendSystem(f), `发一条朋友圈，分享你此刻的生活：看到的、吃到的、遇到的事、小心情。第一人称，1～3 句，符合你的性格，要和现在的时间对得上，可以带一个 emoji。不要加引号和话题标签。${withImg ? '最后加一个 [[画|配图的画面描述]]，画的是你此刻拍下的照片。' : ''}只输出动态内容。`);
+    let text = await complete(friendSystem(f), `发一条朋友圈，分享你此刻的生活：看到的、吃到的、遇到的事、小心情。第一人称，1～3 句，符合你的性格，要和现在的时间对得上，可以带一个 emoji。不要加引号和话题标签。${withImg ? '最后加一个 [[画|配图的画面描述]]，画的是你此刻拍下的照片。' : ''}只输出动态内容。`, [], 'f:' + f.id);
     const draw = text.match(/\[\[画\|([^\]]+)\]\]/);
     text = stripTags(text).replace(/^["“「]+|["”」]+$/g, '').trim();
     if (!text) throw new Error(`${f.name} 没想好写什么`);
@@ -2929,7 +2943,7 @@ function renderFriends() {
   const list = friends();
   $('friendsOn').checked = settings.friendsOn !== false;
   $('friendsSum').textContent = list.length ? list.map(f => f.emoji + f.name).join(' ') : '还没有';
-  $('friendList').innerHTML = list.map((f, i) => `<div class="fr"><input data-fe="${i}" value="${esc(f.emoji)}" maxlength="2" aria-label="头像 emoji"><input data-fn="${i}" value="${esc(f.name)}" maxlength="8" aria-label="名字"><input class="ft" data-ft="${i}" value="${esc(f.traits)}" maxlength="60" aria-label="性格"><button type="button" data-fdel="${i}" aria-label="删除好友">✕</button></div>`).join('');
+  $('friendList').innerHTML = list.map((f, i) => `<div class="fr"><input data-fe="${i}" value="${esc(f.emoji)}" maxlength="2" aria-label="头像 emoji"><input data-fn="${i}" value="${esc(f.name)}" maxlength="8" aria-label="名字"><input class="ft" data-ft="${i}" value="${esc(f.traits)}" maxlength="60" aria-label="性格"><button type="button" data-fdel="${i}" aria-label="删除好友">✕</button><select class="fm" data-fm="${i}" aria-label="${esc(f.name)} 用哪个模型">${modelOptions(f.model || '')}</select></div>`).join('');
 }
 async function saveFriends(list) { settings.friends = list; await saveSettings(); renderFriends(); renderFeed(); renderFriendChats(); }
 
@@ -2957,6 +2971,21 @@ function friendChatSystem(f) {
     `聊到值得以后记得的事（对方的近况、喜好、烦心事），在回复末尾加 [[记住|一句完整的话]]，对方看不到。别的标记都不要用。`,
   ].filter(Boolean).join('\n\n');
 }
+// 谁说话就用谁的模型：好友可以单独指定一家（f.model = "供应商|模型"），没指定或那家没填 Key 就跟 TA 用同一个
+async function voiceFor(who) {
+  const f = friendOf(who);
+  if (f?.model) {
+    const [p, m] = f.model.split('|');
+    if (PROVIDERS[p] && configured[p]) return { provider: p, key: await loadSecret(p), mdl: m };
+  }
+  return { provider: settings.provider, key: await loadSecret(settings.provider), mdl: '' };
+}
+function modelOptions(cur) {
+  const ready = Object.keys(PROVIDERS).filter(p => configured[p]);
+  const opts = ready.map(p => `<optgroup label="${esc(PROVIDERS[p].name)}">${[...new Set([model(p), ...PROVIDERS[p].models])].map(m => `<option value="${p}|${esc(m)}"${cur === p + '|' + m ? ' selected' : ''}>${esc(m)}</option>`).join('')}</optgroup>`).join('');
+  return `<option value="">跟 ${esc(P().name || 'TA')} 用同一个模型</option>` + opts;
+}
+
 function noteFriendMsg(fid, text, unread = false) {
   const m = friendMeta[fid] ||= { unread: 0 };
   m.last = String(text || '').slice(0, 40); m.at = Date.now();
@@ -2967,7 +2996,8 @@ function noteFriendMsg(fid, text, unread = false) {
 function renderFriendChats() {
   const list = friends();
   $('friendSide').hidden = !list.length;
-  $('friendChats').innerHTML = list.map(f => {
+  const gm = friendMeta['@group'] || {};
+  $('friendChats').innerHTML = (list.length ? `<div class="item${chat?.group ? ' on' : ''}"><span data-group role="button" tabindex="0"><i class="fav">👥</i>群聊<small class="hit">${esc(gm.last || '你、' + (P().name || 'TA') + '和好友们')}</small></span>${gm.unread ? `<b class="badge">${gm.unread}</b>` : ''}</div>` : '') + list.map(f => {
     const m = friendMeta[f.id] || {};
     return `<div class="item${chat?.friend === f.id ? ' on' : ''}"><span data-fid="${esc(f.id)}" role="button" tabindex="0"><i class="fav">${esc(f.emoji)}</i>${esc(f.name)}<small class="hit">${esc(m.last || f.traits)}</small></span>${m.unread ? `<b class="badge">${m.unread}</b>` : ''}</div>`;
   }).join('');
@@ -3001,6 +3031,91 @@ async function applyFriendTags(bot, fid) {
   bot.cards = cards;
   if (changed) await DB.set('friendMem', friendMem).catch(() => toast('手机存储出错，好友的记忆可能没存上'));
 }
+// ---- 群聊：你、TA、所有好友在一个群里 ----
+// 存在 chat:g-all，带 group 字段，不进 TA 的聊天列表。每条回复带 who（'ta' 或 'f:<id>'），各用各的模型、各记各的事。
+// 谁回：你提到谁的名字，谁就先回（最多 3 个）；没点名就 TA 先回，好友们各有三成概率接一句（最多 2 个）。
+// 群里不执行任何 [[标记]]（红包、记账、记住……都不算），只聊天。
+const GROUP_ID = 'g-all';
+async function openGroup() {
+  if (controller || !friends().length) return;
+  if (editingAt >= 0) cancelEdit();
+  chat = await DB.get('chat:' + GROUP_ID).catch(() => null) || { id: GROUP_ID, group: true, title: '群聊', messages: [] };
+  currentId = GROUP_ID; showAll = false;
+  if (friendMeta['@group']?.unread) { friendMeta['@group'].unread = 0; DB.set('friendMeta', friendMeta).catch(() => {}); }
+  renderList(); renderFriendChats(); renderShell(); renderThread();
+  $('app').classList.remove('open');
+  showTab('chat');
+}
+function groupSpeakers(text) {
+  const all = [{ who: 'ta', name: P().name || 'TA' }, ...friends().map(f => ({ who: 'f:' + f.id, name: f.name }))];
+  const named = all.map(x => ({ ...x, at: x.name ? text.indexOf(x.name) : -1 })).filter(x => x.at >= 0).sort((a, b) => a.at - b.at).map(x => x.who);
+  if (named.length) return [...new Set(named)].slice(0, 3);
+  const others = friends().map(f => 'f:' + f.id).filter(() => Math.random() < 0.3).sort(() => Math.random() - 0.5).slice(0, 2);
+  return ['ta', ...others];
+}
+function groupSystem(who) {
+  const nick = P().nick || '对方', ta = P().name || '阿言';
+  const roster = [`${nick}（群主）`, `${ta}（${nick}的${P().rel || '恋人'}）`, ...friends().map(f => `${f.name}（${nick}的微信好友，${f.traits}）`)].join('、');
+  const rules = `现在是一个微信群，群里有：${roster}。像群聊一样说话：口语、简短，一次一两句；可以接别人的话、开玩笑、叫别人的名字，有自己的性格和立场，不用什么都附和。只输出你自己要发的这一条，不要写名字前缀，不要替别人说话，不要用任何 [[标记]]，不要自称 AI。`;
+  const f = friendOf(who);
+  if (f) {
+    const mem = friendMem[f.id] || [];
+    return [friendSystem(f), mem.length ? `你记得的关于${nick}的事：\n` + mem.slice(0, 20).map(m => '- ' + m.text).join('\n') : '', rules].filter(Boolean).join('\n\n');
+  }
+  const p = P();
+  return [`你是${ta}，是${nick}的${p.rel || '恋人'}。${p.traits || ''}你叫${nick}"${p.nick || '你'}"。`,
+    settings.memoryOn && memories.length ? `你记得的关于${nick}的事：\n` + memoryLines() : '',
+    `群里其他人是${nick}的好友，你也认识他们。${nick}是你最在意的人，在群里也会护着${nick}，但别腻歪得让别人尴尬。`,
+    rules].filter(Boolean).join('\n\n');
+}
+function groupTranscript(msgs) {
+  const nick = P().nick || '我';
+  return msgs.filter(m => (m.content || m.imgs?.length) && !m.error).slice(-30)
+    .map(m => `${m.role === 'user' ? nick : whoName(m.who || 'ta')}：${(stripTags(m.content) || '').slice(0, 300)}${m.imgs?.length ? `[发了 ${m.imgs.length} 张照片]` : ''}`).join('\n');
+}
+async function runGroup() {
+  const last = chat.messages[chat.messages.length - 1];
+  const order = groupSpeakers(last?.content || '');
+  const c0 = chat;
+  controller = new AbortController();
+  setBusy(true);
+  try {
+    for (const who of order) {
+      if (controller.signal.aborted || chat !== c0) break;
+      const { provider, key, mdl } = await voiceFor(who);
+      if (!key) continue;
+      const bot = { role: 'assistant', who, content: '', at: Date.now() };
+      c0.messages.push(bot);
+      renderThread();
+      const node = $('thread').lastElementChild, i = c0.messages.length - 1;
+      const paint = () => { node.innerHTML = botInner(bot, i, true); $('scroll').scrollTop = $('scroll').scrollHeight; };
+      paint();
+      try {
+        const user = `群聊记录（最新的在最后）：\n${groupTranscript(c0.messages.slice(0, -1))}\n\n现在轮到你（${whoName(who)}）在群里发一条。`;
+        for await (const part of streamChat({ provider, key, system: groupSystem(who), messages: [{ role: 'user', content: user }], signal: controller.signal, mdl })) {
+          if (part.text) { bot.content += part.text; paint(); }
+        }
+      } catch (e) {
+        if (e.name === 'AbortError') throw e;
+        bot.error = e.message.split('\n')[0];
+      }
+      const name = whoName(who);
+      bot.content = stripTags(bot.content).replace(new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[：:]\\s*'), '').trim();
+      if (!bot.content && !bot.error) c0.messages.pop();
+      await saveChat(c0).catch(() => {});
+      if (bot.content) noteFriendMsg('@group', `${name}：${bot.content}`, chat !== c0);
+    }
+  } catch { /* 按了停止 */ }
+  finally {
+    const tail = c0.messages[c0.messages.length - 1];
+    if (tail?.role === 'assistant' && !tail.content && !tail.error) c0.messages.pop();
+    await saveChat(c0).catch(() => {});
+    controller = null;
+    setBusy(false);
+    if (chat === c0) renderThread();
+  }
+}
+
 // 回到 App 时：白天、今天还没有好友主动找过你，三成概率挑一个好友来私聊一句（优先聊过天的）。不走推送
 const FRIEND_PRESSURE = /在吗|在不在|怎么不理|不理我|为什么不回|怎么不回|不回我|理理我|人呢/;
 async function maybeFriendPing() {
@@ -3018,7 +3133,7 @@ async function maybeFriendPing() {
     const c = await DB.get('chat:' + fchatId(f.id)).catch(() => null) || { id: fchatId(f.id), friend: f.id, title: f.name, messages: [] };
     const nick = P().nick || '对方';
     const hist = normalize(c.messages).slice(-8).map(m => `${m.role === 'user' ? nick : '你'}：${m.content.slice(0, 120)}`).join('\n');
-    let text = stripTags(await complete(friendChatSystem(f), `${hist ? '你们之前的私聊：\n' + hist + '\n\n' : ''}你突然想找${nick}聊两句：分享你刚遇到的事，或者接着之前聊的问一句近况。像发微信，一两句。不要问"在吗"，不要抱怨对方不找你。只输出消息本身。`))
+    let text = stripTags(await complete(friendChatSystem(f), `${hist ? '你们之前的私聊：\n' + hist + '\n\n' : ''}你突然想找${nick}聊两句：分享你刚遇到的事，或者接着之前聊的问一句近况。像发微信，一两句。不要问"在吗"，不要抱怨对方不找你。只输出消息本身。`, [], 'f:' + f.id))
       .replace(/^["“「]+|["”」]+$/g, '').trim().slice(0, 200);
     if (!text || FRIEND_PRESSURE.test(text)) return;
     c.messages.push({ role: 'assistant', content: text, proactive: true, at: Date.now() });
@@ -3100,7 +3215,7 @@ async function commentPost(id, text, to = '') {
     const thread = p.comments.map(c => `${c.who === 'me' ? nick : self(c.who)}${c.to ? ` 回复 ${c.to === 'me' ? nick : self(c.to)}` : ''}：${c.text}`).join('\n');
     const whose = author === replier ? '你发了一条动态' : `${author === 'me' ? nick : whoName(author)}发了一条动态`;
     const reply = stripTags(await complete(voiceOf(replier) + `\n\n${whose}：「${p.text || '（只有照片）'}」`,
-      `评论区：\n${thread}\n\n${nick}刚${to ? '回复你' : '评论'}：「${text}」。像在朋友圈里回复评论一样回${nick}一句，简短自然，符合你的性格。只输出回复内容。`)).replace(/^["“「]+|["”」]+$/g, '').trim();
+      `评论区：\n${thread}\n\n${nick}刚${to ? '回复你' : '评论'}：「${text}」。像在朋友圈里回复评论一样回${nick}一句，简短自然，符合你的性格。只输出回复内容。`, [], replier)).replace(/^["“「]+|["”」]+$/g, '').trim();
     if (reply) { p.comments.push({ who: replier, to: 'me', text: reply, at: Date.now() }); await DB.set('moments', moments); renderFeed(); }
   } catch (e) { toast(e.message.split('\n')[0]); }
 }
@@ -3115,7 +3230,7 @@ async function friendsReactToMine(p) {
     const nick = P().nick || '对方';
     const n = p.img ? (p.pics || 1) : 0;
     const said = p.text ? `「${p.text}」` : '（没配文字）';
-    const reply = stripTags(await complete(friendSystem(f), `${nick}刚发了一条朋友圈：${said}${n ? `，配了 ${n} 张照片（你看不到照片内容，别描述照片）` : ''}。给它评论一句，简短、符合你的性格。只输出评论内容。`))
+    const reply = stripTags(await complete(friendSystem(f), `${nick}刚发了一条朋友圈：${said}${n ? `，配了 ${n} 张照片（你看不到照片内容，别描述照片）` : ''}。给它评论一句，简短、符合你的性格。只输出评论内容。`, [], 'f:' + f.id))
       .replace(/^["“「]+|["”」]+$/g, '').trim();
     if (reply) { p.comments.push({ who: 'f:' + f.id, text: reply, at: Date.now() }); await DB.set('moments', moments); renderFeed(); }
   } catch { /* 静默 */ }
@@ -3156,7 +3271,7 @@ async function celebrate(w) {
   toast(`「${w.name}」攒够啦 🎉`);
   markFirst('saved', `第一次一起攒够：${w.name}`);
   closeSheets();
-  if (chat?.friend) await openChat(index[0]?.id || null);
+  if (chat?.friend || chat?.group) await openChat(index[0]?.id || null);
   showTab('chat');
   await send(`（我们一起攒的「${w.name}」攒够啦！¥${money(w.price)}）`, [], { evt: true });
 }
@@ -3423,7 +3538,7 @@ $('xferGo').onclick = async () => {
   await DB.set('wallet', wallet);
   markFirst('xfer', `第一次给 TA 转账 ¥${money(amount)}`);
   closeSheets();
-  if (chat?.friend) await openChat(index[0]?.id || null); // 转账是给 TA 的，不发到好友私聊里
+  if (chat?.friend || chat?.group) await openChat(index[0]?.id || null); // 转账是给 TA 的，不发到好友私聊、群里
   showTab('chat');
   await send(`（给你转账 ¥${money(amount)}${note ? '，备注：' + note : ''}）`, [], { xfer: { amount, note } });
 };
@@ -3476,11 +3591,12 @@ function openCmtBox(id, to, toggle = false) {
 $('friendsOn').onchange = async e => { settings.friendsOn = e.target.checked; await saveSettings(); renderFeed(); };
 $('friendList').addEventListener('change', e => {
   const list = friends().map(f => ({ ...f }));
-  const t = e.target, i = +(t.dataset.fe ?? t.dataset.fn ?? t.dataset.ft);
+  const t = e.target, i = +(t.dataset.fe ?? t.dataset.fn ?? t.dataset.ft ?? t.dataset.fm);
   if (!list[i]) return;
   if (t.dataset.fe !== undefined) list[i].emoji = t.value.trim() || '🙂';
   if (t.dataset.fn !== undefined) list[i].name = t.value.trim() || list[i].name;
   if (t.dataset.ft !== undefined) list[i].traits = t.value.trim() || list[i].traits;
+  if (t.dataset.fm !== undefined) { if (t.value) list[i].model = t.value; else delete list[i].model; }
   saveFriends(list);
 });
 $('friendList').addEventListener('click', e => {
@@ -3591,9 +3707,30 @@ $('list').addEventListener('click', e => {
   const r = e.target.closest('[data-ren]'); if (r) { renameChat(r.dataset.ren); return; }
   const s = e.target.closest('[data-id]'); if (s) openChat(s.dataset.id);
 });
-$('friendChats').addEventListener('click', e => { const s = e.target.closest('[data-fid]'); if (s) openFriend(s.dataset.fid); });
-$('friendChats').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.fid) openFriend(e.target.dataset.fid); });
+$('friendChats').addEventListener('click', e => { if (e.target.closest('[data-group]')) { openGroup(); return; } const s = e.target.closest('[data-fid]'); if (s) openFriend(s.dataset.fid); });
+$('friendChats').addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e.target.dataset.group !== undefined) openGroup(); else if (e.target.dataset.fid) openFriend(e.target.dataset.fid); });
+// 点一条记忆就能改；改成空的等于不改（要删用 ✕）
+function editText(old) { const t = prompt('改一下这条记忆', old); return t === null ? null : t.trim().slice(0, 200); }
+$('memList').addEventListener('click', async e => {
+  const s = e.target.closest('[data-memedit]'); if (!s) return;
+  const m = memories.find(x => x.id === s.dataset.memedit); if (!m) return;
+  const t = editText(m.text); if (!t || t === m.text) return;
+  m.text = t; await DB.set('memories', memories); renderMemories();
+});
 $('fmemList').addEventListener('click', async e => {
+  const add = e.target.closest('[data-fmemadd]');
+  if (add) {
+    const f = friendOf('f:' + add.dataset.fmemadd), t = f && prompt(`让${f.name}记住一件事`, '');
+    if (t && t.trim() && addFriendMemory(f.id, t)) { await DB.set('friendMem', friendMem); renderMemories(); }
+    return;
+  }
+  const ed = e.target.closest('[data-fmemedit]');
+  if (ed) {
+    const [fid, id] = ed.dataset.fmemedit.split('|'), m = (friendMem[fid] || []).find(x => x.id === id); if (!m) return;
+    const t = editText(m.text); if (!t || t === m.text) return;
+    m.text = t; await DB.set('friendMem', friendMem); renderMemories();
+    return;
+  }
   const b = e.target.closest('[data-fmemdel]'); if (!b) return;
   const [fid, id] = b.dataset.fmemdel.split('|');
   friendMem[fid] = (friendMem[fid] || []).filter(m => m.id !== id);
