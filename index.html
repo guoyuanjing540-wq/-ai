@@ -396,6 +396,7 @@
   .plus.on { color: var(--accent); transform: rotate(45deg); }
   .acts-row { max-width: 760px; margin: 0 auto 8px; display: flex; gap: 8px; flex-wrap: wrap; }
   .acts-row button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
+  .acts-row button.on { border-color: var(--accent); color: var(--accent); }
   .attach { max-width: 760px; margin: 0 auto 8px; display: flex; gap: 8px; }
   .attach span { position: relative; }
   .attach img { width: 64px; height: 64px; object-fit: cover; border-radius: 12px; display: block; }
@@ -500,7 +501,7 @@
       <button type="button" id="playClose" aria-label="关闭播放">✕</button>
     </div>
     <div class="composer">
-      <div class="acts-row" id="actsRow" hidden><button type="button" id="actPhoto">📷 照片</button><button type="button" id="actCall">📞 通话</button><button type="button" id="actXfer">¥ 给 TA 转账</button><button type="button" data-prefill="帮我画一张：">✎ 画一张</button><input type="file" id="photoFile" accept="image/*" multiple hidden></div>
+      <div class="acts-row" id="actsRow" hidden><button type="button" id="actPhoto">📷 照片</button><button type="button" id="actCall">📞 通话</button><button type="button" id="actXfer">¥ 给 TA 转账</button><button type="button" data-prefill="帮我画一张：">✎ 画一张</button><button type="button" id="actThink">💭 深度思考</button><input type="file" id="photoFile" accept="image/*" multiple hidden></div>
       <div class="attach" id="attach" hidden></div>
       <div class="editing" id="editBar" hidden>✎ 正在修改上一条消息，发出去后 TA 会重新回答<button type="button" id="editCancel">取消</button></div>
       <div class="box">
@@ -852,6 +853,7 @@
 //   [AI Provider] systemPrompt、buildContext、wire、streamChat（四家接口的差异都在这）依赖：全局状态、Memory、Life、Wallet 的上下文函数
 //   [状态操作]    applyTags：AI 输出的 [[标签]] → 改日程/记忆/钱包/账本，带幂等记录  依赖：全局状态、Memory、Wallet
 //   [Image]       画图、图片卡片                                                   依赖：DB、loadSecret
+//   [Vision]      看不了图的模型（DeepSeek）先让智谱 glm-4v-flash 把照片说成文字      依赖：loadSecret、base
 //   [Search]      联网搜索：TA 写 [[搜索|关键词]] → 查智谱搜索 → 带着结果再答一遍    依赖：loadSecret、base
 //   [Push]        TA 主动找你：Worker 同步、收件箱、打开时先开口                     依赖：DB、loadSecret、Chat（runBot）
 //   [Chat]        send、regenerate、编辑、runBot（一轮对话的完整流程）、按键通话    依赖：AI Provider、状态操作、Image
@@ -971,7 +973,7 @@ async function loadSecret(name) {
 // ════════════════ [全局状态] ════════════════
 // 设置和各份数据都在这里声明，启动时从 DB 读进来
 const DEFAULT_PERSONA = { name: '阿言', rel: '恋人', nick: '', traits: '温柔、细心，有一点小幽默，会认真听你说话，偶尔也会撒娇。', since: '', avatar: '' };
-let settings = { provider: 'deepseek', models: {}, bases: {}, sys: '', memoryOn: true, diaryOn: true, speak: false, accent: 'apricot', glass: true, wallBlur: 12, img: 'glm', search: 'auto', opener: true, push: { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' }, persona: { ...DEFAULT_PERSONA } };
+let settings = { provider: 'deepseek', models: {}, bases: {}, sys: '', memoryOn: true, diaryOn: true, speak: false, accent: 'apricot', glass: true, wallBlur: 12, img: 'glm', search: 'auto', think: false, opener: true, push: { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' }, persona: { ...DEFAULT_PERSONA } };
 let index = [], memories = [], diary = [], events = [], wishes = [], songs = [], tracks = [], ledger = [];
 let period = { logs: [], cycle: 28, len: 5, share: false }, health = { water: {}, sleep: {}, goal: 8, share: true }, perm = {};
 let moments = [], firsts = {}, album = [], feedSeen = 0, wallet = { balance: 0, received: 0, lastSalary: '', log: [], gifts: [] };
@@ -1316,7 +1318,9 @@ function botInner(m, i, streaming) {
   const react = !streaming && m.reaction ? `<button type="button" class="react" data-unreact="${i}" aria-label="取消表情">${m.reaction}</button>` : '';
   const acts = streaming ? '' : `${react}<div class="acts"><button type="button" data-react="${i}" aria-label="回应一个表情">☺</button><button type="button" data-copy="${i}">复制</button>${'speechSynthesis' in window ? `<button type="button" data-speak="${i}">朗读</button>` : ''}${redo}</div>`;
   const pro = m.proactive ? `<div class="pro">${m.kind === 'remind' ? '提醒你' : '主动找你'} · ${new Date(m.at || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>` : '';
-  const body = streaming && m.searching
+  const body = streaming && m.looking
+    ? '<div class="waiting">正在看照片<i></i><i></i><i></i></div>'
+    : streaming && m.searching
     ? `<div class="waiting">正在搜「${esc(m.searching)}」<i></i><i></i><i></i></div>`
     : streaming && !m.content && !m.thinking
     ? '<div class="waiting">正在想<i></i><i></i><i></i></div>'
@@ -1433,12 +1437,14 @@ function normalize(msgs) {
     const drew = m.role === 'assistant' ? (m.cards || []).filter(c => c.type === 'img' && c.status === 'done').map(c => `\n（你给对方画了一张图：${c.prompt}）`).join('') : '';
     const content = ((m.role === 'assistant' ? stripTags(m.content) : (m.content || '')) + drew).trim();
     const imgs = m.role === 'user' && m.imgs?.length ? m.imgs : null;
+    const desc = imgs && m.imgDesc ? m.imgDesc : '';
     if (!content && !imgs) continue;
     const last = out[out.length - 1];
     if (last && last.role === m.role) {
       if (content) last.content += (last.content ? '\n\n' : '') + content;
       if (imgs) last.imgs = [...(last.imgs || []), ...imgs];
-    } else out.push(imgs ? { role: m.role, content, imgs } : { role: m.role, content });
+      if (desc) last.desc = (last.desc ? last.desc + '\n' : '') + desc;
+    } else out.push(imgs ? { role: m.role, content, imgs, ...(desc ? { desc } : {}) } : { role: m.role, content });
   }
   if (out[0]?.role === 'assistant') out.unshift({ role: 'user', content: '（打开了聊天）' });
   return out;
@@ -1453,7 +1459,7 @@ function buildContext(msgs) {
   for (let i = list.length - 1; i >= 0; i--) {
     const m = list[i];
     if (!m.imgs) continue;
-    if (withImg >= 2) { m.content = (m.content ? m.content + '\n' : '') + `（发过 ${m.imgs.length} 张照片）`; delete m.imgs; }
+    if (withImg >= 2) { m.content = (m.content ? m.content + '\n' : '') + (m.desc ? `（发过 ${m.imgs.length} 张照片：${m.desc.slice(0, 300)}）` : `（发过 ${m.imgs.length} 张照片）`); delete m.imgs; delete m.desc; }
     else withImg++;
   }
   const fr = chatFriend();
@@ -1487,11 +1493,28 @@ function httpError(status, bodyText, name = '供应商') {
 function wire(msg, provider) {
   if (!msg.imgs?.length) return { role: msg.role, content: msg.content };
   const text = msg.content || '（发了一张照片）';
-  if (provider === 'deepseek') return { role: msg.role, content: `${text}\n（对方发来了 ${msg.imgs.length} 张照片，但你现在看不到图片。可以温柔地请对方说说照片里是什么。）` };
+  if (provider === 'deepseek') return { role: msg.role, content: msg.desc
+    ? `${text}\n（对方发来了 ${msg.imgs.length} 张照片。你看不到原图，下面是照片的内容，就当是你亲眼看到的，自然地回应，别说"根据描述"：\n${msg.desc}）`
+    : `${text}\n（对方发来了 ${msg.imgs.length} 张照片，但你现在看不到图片。可以温柔地请对方说说照片里是什么。）` };
   if (PROVIDERS[provider].kind === 'anthropic') return { role: msg.role, content: [...msg.imgs.map(u => ({ type: 'image', source: { type: 'base64', media_type: u.slice(5, u.indexOf(';')), data: u.slice(u.indexOf(',') + 1) } })), { type: 'text', text }] };
   return { role: msg.role, content: [{ type: 'text', text }, ...msg.imgs.map(u => ({ type: 'image_url', image_url: { url: u } }))] };
 }
-async function* streamChat({ provider, key, system, messages, signal }) {
+// 深度思考开关：各家参数不一样，全在这里换算。on=想，off=不想；
+// 有的模型关不掉（Claude Opus 5 / 5.5、Fable、智谱 GLM-5.3），关的时候就把思考力度调到最低
+function thinkParams(provider, m, on) {
+  if (provider === 'deepseek') return /^deepseek-v4/.test(m) ? { thinking: { type: on ? 'enabled' : 'disabled' } } : {};
+  if (provider === 'glm') return /4v|glm-5\.3/i.test(m) ? {} : { thinking: { type: on ? 'enabled' : 'disabled' } };
+  if (provider === 'openai') return /^gpt-5\.1/.test(m) ? { reasoning_effort: on ? 'high' : 'none' } : /^gpt-5/.test(m) ? { reasoning_effort: on ? 'high' : 'minimal' } : {};
+  if (provider === 'claude') {
+    const alwaysOn = /^claude-(opus-5|fable|mythos)/.test(m);
+    const summarized = /^claude-(opus-5|sonnet-5|opus-4-[78]|fable|mythos)/.test(m);
+    if (!on) return alwaysOn ? { output_config: { effort: 'low' } } : /^claude-sonnet-5/.test(m) ? { thinking: { type: 'disabled' } } : {};
+    if (/^claude-(opus|sonnet)-[45]-[6-9]|^claude-(opus|sonnet)-5|^claude-(fable|mythos)/.test(m)) return { thinking: summarized ? { type: 'adaptive', display: 'summarized' } : { type: 'adaptive' } };
+    return { thinking: { type: 'enabled', budget_tokens: 8000 } };
+  }
+  return {};
+}
+async function* streamChat({ provider, key, system, messages, signal, think = false }) {
   const p = PROVIDERS[provider];
   const hasImg = messages.some(x => x.imgs?.length);
   messages = messages.map(x => wire(x, provider));
@@ -1504,7 +1527,7 @@ async function* streamChat({ provider, key, system, messages, signal }) {
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     };
-    const body = { model: m, max_tokens: 32000, stream: true, system, messages };
+    const body = { model: m, max_tokens: 32000, stream: true, system, messages, ...thinkParams(provider, m, think) };
     if (/^claude-(opus-5|fable)/.test(m)) {
       headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
       body.fallbacks = 'default';
@@ -1514,7 +1537,7 @@ async function* streamChat({ provider, key, system, messages, signal }) {
     res = await fetch(base(provider) + '/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-      body: JSON.stringify({ model: m, stream: true, messages: [{ role: 'system', content: system }, ...messages] }),
+      body: JSON.stringify({ model: m, stream: true, messages: [{ role: 'system', content: system }, ...messages], ...thinkParams(provider, m, think) }),
       signal,
     });
   }
@@ -1695,6 +1718,39 @@ async function applyTags(bot) {
     if (!changed[flag]) continue;
     try { await DB.set(key, val()); } catch { toast('手机存储出错，有些记录可能没存上'); }
   }
+}
+
+// ════════════════ [Vision] ════════════════
+// DeepSeek 看不了图：发照片时先让智谱的 glm-4v-flash（免费）把每张照片说成一段文字，
+// 存在那条消息的 imgDesc 上（只看一次），再当成 TA "看到的"交给 DeepSeek。没有智谱 Key 就还是老样子，请对方说说照片里是什么
+const needsEyes = provider => provider === 'deepseek';
+async function visionKey() { return (await loadSecret('img-glm')) || (await loadSecret('glm')) || (await loadSecret('search-glm')); }
+async function describeImage(url, key, signal) {
+  const res = await fetch(base('glm') + '/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+    body: JSON.stringify({ model: 'glm-4v-flash', messages: [{ role: 'user', content: [
+      { type: 'image_url', image_url: { url } },
+      { type: 'text', text: '用中文把这张照片描述清楚，150 字以内：拍的是什么、人物的样子和表情、穿着、场景、文字（照抄）、氛围。只写看到的，不要猜测和评价。' },
+    ] }] }),
+    signal,
+  });
+  if (!res.ok) throw httpError(res.status, await res.text(), '智谱看图');
+  const j = await res.json();
+  return String(j.choices?.[0]?.message?.content || '').trim();
+}
+// 给一组消息里还没描述过的照片补上描述；返回是否有改动。失败的照片跳过，不挡着聊天
+async function describeMissing(msgs, signal) {
+  const key = await visionKey();
+  if (!key) return false;
+  const todo = msgs.filter(m => m.role === 'user' && m.imgs?.length && !m.imgDesc).slice(-2);
+  let changed = false;
+  for (const m of todo) {
+    const parts = await Promise.all(m.imgs.slice(0, 4).map((u, k) => describeImage(u, key, signal).then(t => t && (m.imgs.length > 1 ? `第 ${k + 1} 张：${t}` : t)).catch(e => { if (e.name === 'AbortError') throw e; return ''; })));
+    const d = parts.filter(Boolean).join('\n');
+    if (d) { m.imgDesc = d; changed = true; }
+  }
+  return changed;
 }
 
 // ════════════════ [Search] ════════════════
@@ -2048,19 +2104,24 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
   const schedule = () => { if (!raf) raf = requestAnimationFrame(paint); };
   paint(); // 第一个字到之前先显示"正在想…"
 
+  controller = new AbortController();
+  setBusy(true);
+  if (needsEyes(provider) && chat.messages.some(m => m.imgs?.length && !m.imgDesc)) {
+    bot.looking = true; paint();
+    try { if (await describeMissing(chat.messages, controller.signal)) await saveChat(chat).catch(() => {}); } catch { /* 停止了，下面照常收尾 */ }
+    delete bot.looking;
+  }
   const ctx = buildContext(chat.messages.slice(0, -1));
   if (nudge) {
     const last = ctx.messages[ctx.messages.length - 1];
     if (last?.role === 'user') last.content += '\n\n' + nudge; else ctx.messages.push({ role: 'user', content: nudge });
   }
   if (extra) ctx.system += '\n\n' + extra;
-  controller = new AbortController();
-  setBusy(true);
   try {
     // 最多两遍：第一遍 TA 要是只写了 [[搜索|关键词]]，就去搜，把结果放进系统提示，再答一遍。
     // 好友私聊、主动开口不搜；一轮只搜一次，第二遍再写搜索标记也不理（stripTags 会把它藏掉）
     for (let searched = false; ;) {
-      for await (const part of streamChat({ provider, key, ...ctx, signal: controller.signal })) {
+      for await (const part of streamChat({ provider, key, ...ctx, signal: controller.signal, think: !!settings.think && !proactive })) {
         if (part.text) bot.content += part.text;
         if (part.thinking) bot.thinking += part.thinking;
         if (part.stop === 'refusal') bot.error = '这个问题模型拒绝回答了。';
@@ -2087,7 +2148,7 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
   } finally {
     if (raf) cancelAnimationFrame(raf);
     controller = null;
-    delete bot.searching;
+    delete bot.searching; delete bot.looking;
     try { if (fid) await applyFriendTags(bot, fid); else await applyTags(bot); } catch (e) { console.warn(e); bot.content = stripTags(bot.content); bot.cards ||= []; }
     if (!bot.content && !bot.thinking && !bot.error && !bot.cards.length) bot.error = '已停止。';
     // TA 主动开口没成功（网络、额度……）：悄悄撤掉这条，不在聊天里留一条报错，也不挡着正常聊天
@@ -2706,6 +2767,10 @@ async function complete(system, user, imgs = []) {
   if (!key) throw new Error(`先在设置里填 ${PROVIDERS[provider].name} 的 API Key`);
   let text = '';
   const msg = imgs.length ? { role: 'user', content: user, imgs } : { role: 'user', content: user };
+  if (imgs.length && needsEyes(provider)) {
+    const tmp = { role: 'user', imgs };
+    if (await describeMissing([tmp]).catch(() => false)) msg.desc = tmp.imgDesc;
+  }
   for await (const part of streamChat({ provider, key, system, messages: [msg] })) if (part.text) text += part.text;
   return text.trim();
 }
@@ -3333,6 +3398,8 @@ $('installBtn').onclick = () => {
 $('meExport').onclick = () => exportAll();
 $('plusBtn').onclick = () => { const r = $('actsRow'); r.hidden = !r.hidden; $('plusBtn').classList.toggle('on', !r.hidden); };
 $('actPhoto').onclick = () => $('photoFile').click();
+function renderThink() { const b = $('actThink'); b.classList.toggle('on', !!settings.think); b.textContent = settings.think ? '💭 深度思考 · 开' : '💭 深度思考 · 关'; }
+$('actThink').onclick = () => { settings.think = !settings.think; saveSettings(); renderThink(); toast(settings.think ? '深度思考开了：想得更久，回得慢一点、费一点' : '深度思考关了：直接回，快一点、省一点'); };
 $('actXfer').onclick = () => { $('actsRow').hidden = true; $('plusBtn').classList.remove('on'); openSheet('xferSheet'); };
 $('actCall').onclick = () => { $('actsRow').hidden = true; $('plusBtn').classList.remove('on'); openCall(); };
 $('callEnd').onclick = endCall;
@@ -3806,6 +3873,7 @@ $('diaryList').addEventListener('click', async e => {
     await loadWall();
     await refreshImgReady();
     await refreshSearchReady();
+    renderThink();
     applyMic();
     refreshWeather();
     updateFeedDot();
