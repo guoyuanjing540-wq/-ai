@@ -68,7 +68,9 @@
   .item small { color: var(--muted); font-size: 11px; }
   .item .del, .item .ren { opacity: 0; border: 0; background: none; color: var(--muted); padding: 0 4px; }
   .item:hover .del, .item.on .del, .item:hover .ren, .item.on .ren { opacity: 1; }
-  .item .fav { font-style: normal; margin-right: 6px; }
+  .item .fav { font-style: normal; margin-right: 6px; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; overflow: hidden; vertical-align: middle; cursor: pointer; }
+  .item .fav img { width: 100%; height: 100%; object-fit: cover; }
+  [data-fprof] { cursor: pointer; }
   .item .badge { flex: none; min-width: 18px; height: 18px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
   .top .menu { position: relative; }
   .top .menu .dot { position: absolute; top: 0; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
@@ -581,7 +583,7 @@
           <button type="button" id="meExport"><span class="mi">⇩</span>备份全部数据<span class="go">›</span></button>
         </div>
         <details class="friends" id="friendsBox" style="text-align:left">
-          <summary>好友 · <span id="friendsSum"></span><small style="display:block;margin-top:2px">像微信好友一样：在聊天列表里点他们就能私聊，各自记得和你聊过的事</small></summary>
+          <summary>好友 · <span id="friendsSum"></span><small style="display:block;margin-top:2px">像微信好友一样：在聊天列表里点他们就能私聊，各自记得和你聊过的事。点头像能改资料、换照片</small></summary>
           <label class="toggle" style="margin-top:10px"><span>让好友发朋友圈、来评论、偶尔找你聊天<small>朋友圈每天最多 2 条，主动私聊每天最多 1 次；会用你聊天的 Key，配图用画图的 Key</small></span><input type="checkbox" id="friendsOn"></label>
           <div id="friendList"></div>
           <div class="row" style="margin-top:8px"><button class="btn" type="button" id="friendAdd">＋ 加一个好友</button><button class="btn" type="button" id="friendPost">让好友发一条</button></div>
@@ -626,6 +628,25 @@
       <label class="field" style="margin-top:6px">背景模糊<input class="range" type="range" id="wallBlur" min="0" max="40" step="2"></label>
     </div>
     <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" id="pSave">保存</button></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="friendSheet" hidden>
+  <div class="sheet" role="dialog" aria-label="好友资料">
+    <header><h2 id="fsTitle">好友资料</h2><button class="x" type="button" data-close aria-label="关闭">✕</button></header>
+    <div class="persona-top">
+      <button class="av" id="fsAvBtn" type="button" aria-label="更换头像"></button>
+      <div class="stack" style="flex:1">
+        <div class="row"><button class="btn" type="button" id="fsAvPick">换头像</button><button class="btn" type="button" id="fsAvReset">用 emoji</button></div>
+        <input type="file" id="fsAvFile" accept="image/*" hidden>
+        <label class="field">emoji 头像<input id="fsEmoji" maxlength="2"></label>
+      </div>
+    </div>
+    <label class="field">名字<input id="fsName" maxlength="8"></label>
+    <label class="field">性格和说话方式<textarea id="fsTraits" maxlength="200"></textarea></label>
+    <label class="field">用哪个模型<select id="fsModel"></select></label>
+    <div class="field">记得的关于你的事<div class="stack" id="fsMem"></div><div class="row"><button class="btn" type="button" id="fsMemAdd">＋ 加一条</button></div></div>
+    <div class="row" style="justify-content:space-between"><button class="btn" type="button" id="fsDel">删除好友</button><span class="row"><button class="btn" type="button" id="fsChat">发消息</button><button class="btn primary" type="button" id="fsSave">保存</button></span></div>
   </div>
 </div>
 
@@ -1037,6 +1058,8 @@ function daysTogether() {
   const n = Math.floor((t - s) / 864e5) + 1;
   return n > 0 ? n : 0;
 }
+// 好友头像：有照片用照片，没有用 emoji
+const favHTML = f => f?.avatar ? `<img src="${esc(f.avatar)}" alt="">` : esc(f?.emoji || '·');
 function avatarInner() {
   return P().avatar ? `<img src="${esc(P().avatar)}" alt="">` : esc((P().name || '言').slice(0, 1));
 }
@@ -1123,7 +1146,7 @@ function renderShell() {
   }
   const fr = chatFriend();
   if (fr) {
-    $('topAv').innerHTML = esc(fr.emoji);
+    $('topAv').innerHTML = favHTML(fr);
     $('topName').textContent = fr.name;
     $('topSub').textContent = '好友';
     $('input').placeholder = `和${fr.name}说点什么…`;
@@ -1194,7 +1217,7 @@ function renderHome() {
   }
   const fr = chatFriend();
   if (fr) {
-    $('home').innerHTML = `<span class="av" style="width:72px;height:72px;font-size:30px">${esc(fr.emoji)}</span><h1>${esc(fr.name)}</h1><p>${esc(fr.traits)}</p>
+    $('home').innerHTML = `<span class="av" style="width:72px;height:72px;font-size:30px" data-fprof="${esc(fr.id)}">${favHTML(fr)}</span><h1>${esc(fr.name)}</h1><p>${esc(fr.traits)}</p>
       <div class="chips">${['在干嘛呢', '今天好累', '最近在追什么剧', '推荐点好吃的'].map(c => `<button class="chip" type="button">${esc(c)}</button>`).join('')}</div>`;
     return;
   }
@@ -1338,9 +1361,9 @@ function botInner(m, i, streaming) {
     ? '<div class="waiting">正在想<i></i><i></i><i></i></div>'
     : streaming || stripTags(m.content) ? `<div class="body${streaming ? ' cursor' : ''}">${md(stripTags(m.content))}</div>` : '';
   const src = m.sources?.length ? `<div class="links src"><small>搜到的：</small>${m.sources.map((s, k) => link(`${k + 1}. ${s.title.slice(0, 16) || '来源'}`, s.link)).join('')}</div>` : '';
-  if (chat?.group) return `<span class="av">${whoAv(m.who || 'ta')}</span><div><div class="gname">${esc(whoName(m.who || 'ta'))}</div>${think}${body}${err}${acts}</div>`;
+  if (chat?.group) return `<span class="av"${friendOf(m.who) ? ` data-fprof="${esc(m.who.slice(2))}"` : ''}>${whoAv(m.who || 'ta')}</span><div><div class="gname">${esc(whoName(m.who || 'ta'))}</div>${think}${body}${err}${acts}</div>`;
   const fr = chatFriend();
-  return `<span class="av">${fr ? esc(fr.emoji) : avatarInner()}</span><div>${pro}${think}${body}${src}${cards}${err}${acts}</div>`;
+  return `<span class="av"${fr ? ` data-fprof="${esc(fr.id)}"` : ''}>${fr ? favHTML(fr) : avatarInner()}</span><div>${pro}${think}${body}${src}${cards}${err}${acts}</div>`;
 }
 
 function userHTML(m, i) {
@@ -2884,7 +2907,7 @@ function whoName(w) {
 }
 function whoAv(w) {
   if (w === 'me') return esc((P().nick || '我').slice(0, 1));
-  if (w && w.startsWith?.('f:')) return esc(friendOf(w)?.emoji || '·');
+  if (w && w.startsWith?.('f:')) return favHTML(friendOf(w));
   return avatarInner();
 }
 function friendSystem(f) {
@@ -2999,7 +3022,7 @@ function renderFriendChats() {
   const gm = friendMeta['@group'] || {};
   $('friendChats').innerHTML = (list.length ? `<div class="item${chat?.group ? ' on' : ''}"><span data-group role="button" tabindex="0"><i class="fav">👥</i>群聊<small class="hit">${esc(gm.last || '你、' + (P().name || 'TA') + '和好友们')}</small></span>${gm.unread ? `<b class="badge">${gm.unread}</b>` : ''}</div>` : '') + list.map(f => {
     const m = friendMeta[f.id] || {};
-    return `<div class="item${chat?.friend === f.id ? ' on' : ''}"><span data-fid="${esc(f.id)}" role="button" tabindex="0"><i class="fav">${esc(f.emoji)}</i>${esc(f.name)}<small class="hit">${esc(m.last || f.traits)}</small></span>${m.unread ? `<b class="badge">${m.unread}</b>` : ''}</div>`;
+    return `<div class="item${chat?.friend === f.id ? ' on' : ''}"><span data-fid="${esc(f.id)}" role="button" tabindex="0"><i class="fav" data-fprof="${esc(f.id)}" title="看资料">${favHTML(f)}</i>${esc(f.name)}<small class="hit">${esc(m.last || f.traits)}</small></span>${m.unread ? `<b class="badge">${m.unread}</b>` : ''}</div>`;
   }).join('');
   $('menuDot').hidden = !list.some(f => friendMeta[f.id]?.unread);
 }
@@ -3031,6 +3054,36 @@ async function applyFriendTags(bot, fid) {
   bot.cards = cards;
   if (changed) await DB.set('friendMem', friendMem).catch(() => toast('手机存储出错，好友的记忆可能没存上'));
 }
+// ---- 好友资料：点好友头像打开，能改名字、头像（照片或 emoji）、性格、模型、记忆，也能删掉 ----
+let fsId = '', fsAv = '';
+function openFriendProfile(fid) {
+  const f = friendOf('f:' + fid); if (!f) return;
+  fsId = fid; fsAv = f.avatar || '';
+  $('fsTitle').textContent = f.name + ' 的资料';
+  $('fsEmoji').value = f.emoji || '🙂'; $('fsName').value = f.name; $('fsTraits').value = f.traits || '';
+  $('fsModel').innerHTML = modelOptions(f.model || '');
+  renderFsAv(); renderFsMem();
+  openSheet('friendSheet');
+}
+function renderFsAv() { $('fsAvBtn').innerHTML = fsAv ? `<img src="${esc(fsAv)}" alt="">` : esc($('fsEmoji').value.trim() || '🙂'); }
+function renderFsMem() {
+  const list = friendMem[fsId] || [];
+  $('fsMem').innerHTML = list.length ? list.map(m => `<div class="li"><span data-fsedit="${m.id}" role="button" tabindex="0" title="点一下修改">${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-fsdel="${m.id}" aria-label="删除">✕</button></div>`).join('')
+    : '<p class="note">还没记住什么。私聊时聊到的事会自己记下来，也可以手动加。</p>';
+}
+async function saveFriendProfile() {
+  const list = friends().map(f => ({ ...f })), f = list.find(x => x.id === fsId); if (!f) return;
+  f.emoji = $('fsEmoji').value.trim() || '🙂';
+  f.name = $('fsName').value.trim() || f.name;
+  f.traits = $('fsTraits').value.trim().slice(0, 200) || f.traits;
+  if ($('fsModel').value) f.model = $('fsModel').value; else delete f.model;
+  if (fsAv) f.avatar = fsAv; else delete f.avatar;
+  await saveFriends(list);
+  if (chat?.friend === fsId) chat.title = f.name;
+  renderShell(); renderThread(); renderMemories();
+  closeSheets(); toast('保存好了');
+}
+
 // ---- 群聊：你、TA、所有好友在一个群里 ----
 // 存在 chat:g-all，带 group 字段，不进 TA 的聊天列表。每条回复带 who（'ta' 或 'f:<id>'），各用各的模型、各记各的事。
 // 谁回：你提到谁的名字，谁就先回（最多 3 个）；没点名就 TA 先回，好友们各有三成概率接一句（最多 2 个）。
@@ -3696,6 +3749,9 @@ $('menuBtn').onclick = () => $('app').classList.add('open');
 $('scrim').onclick = () => $('app').classList.remove('open');
 document.addEventListener('click', e => {
   const o = e.target.closest('[data-open]');
+  if (o && o.dataset.open === 'personaSheet' && (chat?.friend || chat?.group)) { if (chat.friend) openFriendProfile(chat.friend); return; }
+  const fp = e.target.closest('[data-fprof]');
+  if (fp) { e.stopPropagation(); openFriendProfile(fp.dataset.fprof); return; }
   if (o) { openSheet(o.dataset.open); if (o.dataset.focus) setTimeout(() => $(o.dataset.focus)?.scrollIntoView({ block: 'center' }), 60); return; }
   const pf = e.target.closest('[data-prefill]'); if (pf) { prefill(pf.dataset.prefill); return; }
   if (e.target.closest('[data-close]') || e.target.classList.contains('sheet-bg')) { if (inCall) endCall(); else closeSheets(); }
@@ -3707,7 +3763,7 @@ $('list').addEventListener('click', e => {
   const r = e.target.closest('[data-ren]'); if (r) { renameChat(r.dataset.ren); return; }
   const s = e.target.closest('[data-id]'); if (s) openChat(s.dataset.id);
 });
-$('friendChats').addEventListener('click', e => { if (e.target.closest('[data-group]')) { openGroup(); return; } const s = e.target.closest('[data-fid]'); if (s) openFriend(s.dataset.fid); });
+$('friendChats').addEventListener('click', e => { if (e.target.closest('[data-fprof]')) return; if (e.target.closest('[data-group]')) { openGroup(); return; } const s = e.target.closest('[data-fid]'); if (s) openFriend(s.dataset.fid); });
 $('friendChats').addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e.target.dataset.group !== undefined) openGroup(); else if (e.target.dataset.fid) openFriend(e.target.dataset.fid); });
 // 点一条记忆就能改；改成空的等于不改（要删用 ✕）
 function editText(old) { const t = prompt('改一下这条记忆', old); return t === null ? null : t.trim().slice(0, 200); }
@@ -3805,6 +3861,34 @@ $('sendBtn').onclick = () => { if (controller) controller.abort(); else submit()
 
 $('pAvPick').onclick = () => $('pAvFile').click();
 $('pAvBtn').onclick = () => $('pAvFile').click();
+$('fsAvBtn').onclick = $('fsAvPick').onclick = () => $('fsAvFile').click();
+$('fsAvFile').onchange = async e => {
+  const f = e.target.files?.[0]; e.target.value = '';
+  if (!f) return;
+  try { fsAv = await resizeImage(f); renderFsAv(); } catch { toast('这张图片读不了，换一张试试'); }
+};
+$('fsAvReset').onclick = () => { fsAv = ''; renderFsAv(); };
+$('fsEmoji').addEventListener('input', renderFsAv);
+$('fsSave').onclick = saveFriendProfile;
+$('fsChat').onclick = () => { closeSheets(); openFriend(fsId); };
+$('fsDel').onclick = async () => {
+  const f = friendOf('f:' + fsId); if (!f || !confirm(`删掉${f.name}？TA 发过的动态会留着。`)) return;
+  await saveFriends(friends().filter(x => x.id !== fsId));
+  closeSheets();
+  if (chat?.friend === fsId) await openChat(index[0]?.id || null);
+};
+$('fsMemAdd').onclick = async () => {
+  const f = friendOf('f:' + fsId), t = f && prompt(`让${f.name}记住一件事`, '');
+  if (t && t.trim() && addFriendMemory(fsId, t)) { await DB.set('friendMem', friendMem); renderFsMem(); renderMemories(); }
+};
+$('fsMem').addEventListener('click', async e => {
+  const d = e.target.closest('[data-fsdel]');
+  if (d) { friendMem[fsId] = (friendMem[fsId] || []).filter(m => m.id !== d.dataset.fsdel); await DB.set('friendMem', friendMem); renderFsMem(); renderMemories(); return; }
+  const ed = e.target.closest('[data-fsedit]'); if (!ed) return;
+  const m = (friendMem[fsId] || []).find(x => x.id === ed.dataset.fsedit); if (!m) return;
+  const t = editText(m.text); if (!t || t === m.text) return;
+  m.text = t; await DB.set('friendMem', friendMem); renderFsMem(); renderMemories();
+});
 $('pAvFile').onchange = async e => {
   const f = e.target.files?.[0]; e.target.value = '';
   if (!f) return;
