@@ -62,6 +62,7 @@
 说明这家供应商不让网页直接调用。
 把 worker.js 部署成 Cloudflare Worker（步骤见下面第六条的 1、2 步就够了），
 然后在设置的"接口地址"里填 https://你的worker地址/deepseek（或 /openai、/glm、/claude）。
+Worker 设了密码（PASS）的话，转发也要密码：在「TA 主动找你」里填上同一个 Worker 的地址和密码，知言会自动带上；别人知道地址也蹭不了。
 
 六、TA 主动找你
 1. 打开 App 时 TA 先开口：默认就开着，不用配置。隔 3 小时以上再打开，TA 会先说话。
