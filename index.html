@@ -158,6 +158,11 @@
   .links a { text-decoration: none; font-size: 12px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 10px; }
   .links a:hover { border-color: var(--accent); color: var(--accent); }
   .gname { font-size: 12px; color: var(--muted); margin: 0 0 3px 2px; }
+  .recap { max-width: 760px; margin: 0 auto 14px; }
+  .mcats { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .mcats button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 4px 11px; font-size: 13px; color: var(--muted); }
+  .mcats button.on { border-color: var(--accent); color: var(--accent); }
+  .mcat { font-style: normal; font-size: 11px; color: var(--accent); border: 1px solid currentColor; border-radius: 6px; padding: 0 5px; margin-right: 6px; vertical-align: 1px; }
   .links.src { align-items: center; } .links.src small { color: var(--muted); font-size: 12px; }
 
   .player { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom)); width: min(420px, calc(100% - 32px)); background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 4px 18px rgba(0,0,0,.08); padding: 6px 8px 6px 16px; display: flex; align-items: center; gap: 8px; font-size: 14px; z-index: 5; }
@@ -542,6 +547,7 @@
         <h2>TA 记得的事</h2>
         <p class="lead">新对话也不会忘记。聊天时 TA 会自己把值得记的事存进来，你说"请记住……"也可以，随时能查看、添加或删除。</p>
         <div class="memrow"><input id="memInput" maxlength="200" placeholder="例如：我住在杭州，喜欢猫" aria-label="新的记忆"><button class="btn primary" type="button" id="memAdd">记住</button></div>
+        <div class="mcats" id="memCats"></div>
         <div class="stack" id="memList"></div>
         <div id="fmemBox" hidden><h2>好友记得的</h2><p class="lead">每个好友只记得和你私聊时说过的事，TA 和别的好友都看不到。点一条可以修改，也能手动加。</p><div class="stack" id="fmemList"></div></div>
         <h2>导入与备份</h2>
@@ -830,7 +836,8 @@
     <label class="field" id="fModelCustom" hidden>模型名<input id="fModel" placeholder="照着供应商文档填"></label>
     <label class="field">接口地址（一般不用改；连不上时换成自己的转发地址）<input id="fBase"></label>
     <label class="field">额外要求（可不填）<textarea id="fSys" placeholder="例如：回复短一点。"></textarea></label>
-    <label class="toggle"><span>参考记忆<small>每次聊天都带上"记忆"里的内容</small></span><input type="checkbox" id="fMem"></label>
+    <label class="toggle"><span>参考记忆<small>每次聊天挑和正在聊的最相关的 40 条记忆带上</small></span><input type="checkbox" id="fMem"></label>
+    <label class="toggle"><span>长聊天自动整理前情提要<small>一段聊天很长时，把前面的内容整理成一段提要，TA 不会忘了很久以前聊过的事，也更省钱；大约每 30 条多花一次请求</small></span><input type="checkbox" id="fSum"></label>
     <label class="toggle"><span>参考心情日记<small>聊天时参考最近三条日记</small></span><input type="checkbox" id="fDiary"></label>
     <label class="toggle"><span>自动朗读回答<small>用手机自带的中文语音</small></span><input type="checkbox" id="fSpeak"></label>
     <h3>画图</h3>
@@ -1016,20 +1023,41 @@ const saveChat = c => DB.set('chat:' + c.id, c);
 
 // ════════════════ [Memory] ════════════════
 // 记忆的增删都走这里
-// 记忆总量封顶，免得上下文越滚越长、越聊越贵。
-// MEM_USE 与 MEM_MAX 保持一致：记忆页列出多少条，TA 就知道多少条，
-// 否则用户会看着一条明明在列表里的记忆，纳闷 TA 为什么不记得。
-const MEM_MAX = 80, MEM_USE = MEM_MAX;
+// 记忆最多存 MEM_MAX 条。每次聊天不再全部塞给 TA，而是挑和现在聊的最相关的 MEM_PICK 条（pickMemories），
+// 记得再多也不会越聊越贵；记忆页上会写清楚"TA 每次会挑最相关的 40 条"，免得以为 TA 忘了。
+const MEM_MAX = 200, MEM_PICK = 40;
 const memKey = s => s.replace(/[\s，。,.、!！?？~～"'"'']/g, '').toLowerCase();
+// 自动分类：看关键词，不额外发请求。按顺序匹配，第一个对上的算数
+const MEM_CATS = [
+  ['重要日子', /生日|纪念日|周年|忌日|\d+\s*月\s*\d+\s*[日号]|每年|过年|中秋|国庆/],
+  ['人和事', /妈|爸|弟|妹|姐|哥|外婆|奶奶|爷爷|姥|小姨|舅|姑|叔|表|堂|朋友|闺蜜|老板|同事|合伙|对象|男朋友|女朋友|顾客|客人/],
+  ['喜好', /喜欢|爱吃|爱喝|爱看|爱听|不吃|不喝|讨厌|最爱|偏爱|口味|害怕|怕/],
+  ['习惯', /每天|总是|经常|习惯|睡前|起床|通常|一般|老是|作息/],
+  ['近况', /最近|正在|在忙|打算|计划|准备|这周|这个月|下周|下个月|明天|要去|还款|考试|搬家/],
+];
+const MEM_CAT_NAMES = [...MEM_CATS.map(c => c[0]), '其他'];
+const memCat = t => (MEM_CATS.find(([, re]) => re.test(t)) || ['其他'])[0];
 function addMemory(text) {
   const t = String(text || '').trim().slice(0, 200);
   const k = memKey(t);
   if (!k || memories.some(m => memKey(m.text) === k)) return false;
-  memories.unshift({ id: uid(), text: t, created: new Date().toLocaleDateString('zh-CN') });
+  memories.unshift({ id: uid(), text: t, cat: memCat(t), created: new Date().toLocaleDateString('zh-CN') });
   if (memories.length > MEM_MAX) memories.length = MEM_MAX;
   return true;
 }
-const memoryLines = (n = MEM_USE) => memories.slice(0, n).map(m => '- ' + m.text.slice(0, 100)).join('\n');
+// 挑记忆：两个字两个字地比，和最近的聊天重合越多越靠前；最新记的几条、重要日子稍微加分
+const grams = s => { const t = memKey(s), g = new Set(); for (let i = 0; i < t.length - 1; i++) g.add(t.slice(i, i + 2)); return g; };
+function pickMemories(query = '', n = MEM_PICK) {
+  if (memories.length <= n || !query) return memories.slice(0, n);
+  const q = grams(query);
+  return memories.map((m, i) => {
+    const g = grams(m.text); let hit = 0;
+    for (const x of g) if (q.has(x)) hit++;
+    return { m, s: hit / Math.sqrt(g.size || 1) + (i < 8 ? 0.6 : 0) + ((m.cat || memCat(m.text)) === '重要日子' ? 0.3 : 0) };
+  }).sort((a, b) => b.s - a.s).slice(0, n).map(x => x.m);
+}
+const memoryLines = (query = '') => pickMemories(query).map(m => '- ' + m.text.slice(0, 100)).join('\n')
+  + (memories.length > MEM_PICK ? '\n（你记得的事不止这些，这里是和现在聊的最相关的几条。）' : '');
 
 // ════════════════ [UI] ════════════════
 // 通用界面：提示、主题、头像、聊天列表、消息气泡、卡片
@@ -1378,7 +1406,8 @@ function renderThread() {
   renderHome();
   const msgs = chat?.messages || [];
   const start = showAll ? 0 : Math.max(0, msgs.length - RENDER_LIMIT);
-  let html = start > 0 ? `<button class="older" type="button" id="olderBtn">显示更早的 ${start} 条消息</button>` : '';
+  let html = chat?.summary && chat.sumUpTo ? `<details class="think recap"><summary>📜 前情提要 · 前 ${chat.sumUpTo} 条 TA 已经整理好记着了</summary><div>${esc(chat.summary)}</div></details>` : '';
+  html += start > 0 ? `<button class="older" type="button" id="olderBtn">显示更早的 ${start} 条消息</button>` : '';
   for (let i = start; i < msgs.length; i++) {
     const m = msgs[i];
     html += m.role === 'user'
@@ -1426,7 +1455,7 @@ function touch(c) {
 
 // ════════════════ [AI Provider] ════════════════
 // 拼系统提示、整理上下文、把消息转成各家接口的格式、流式读取回复
-function systemPrompt() {
+function systemPrompt(query = '') {
   const p = P();
   const nick = p.nick || '你';
   const now = new Date();
@@ -1450,7 +1479,7 @@ function systemPrompt() {
 - 对方问的事你不确定、或者需要最新的信息（新闻、比赛、价格、上映、政策、某家店某个东西现在怎么样……），或者对方让你查一下、搜一下：这条回复只写一个 [[搜索|关键词]]，别的什么都不写。App 会去搜，把结果拿给你，你再正常回答。关键词写成搜索引擎用的短词组，30 个字以内。闲聊、说心事、你本来就知道的，不要搜` : ''}
 只在确实需要时用，一次最多 5 个。标记之外照常说话。${imgReady ? '' : '\n你现在还不能画图；对方让你画的话，温柔地告诉对方在设置的"画图"里填一个智谱的 Key 就可以（免费）。'}`,
   ];
-  if (settings.memoryOn && memories.length) parts.push(`你记得的关于${nick}的事：\n` + memoryLines());
+  if (settings.memoryOn && memories.length) parts.push(`你记得的关于${nick}的事：\n` + memoryLines(query));
   const up = upcoming(14);
   if (up.length) parts.push('日历里接下来的安排：\n' + up.map(e => `- ${e.on}${e.time ? ' ' + e.time : ''} ${e.title}`).join('\n'));
   const life = lifeContext();
@@ -1486,7 +1515,9 @@ function normalize(msgs) {
   return out;
 }
 function buildContext(msgs) {
-  let list = normalize(msgs).slice(-40);
+  // 前面整理过前情提要的部分（sumUpTo 之前）不再原样发，换成系统提示里的一段提要
+  const cut = Math.min(chat?.sumUpTo || 0, msgs.length);
+  let list = normalize(msgs.slice(cut)).slice(-40);
   let total = list.reduce((n, m) => n + m.content.length, 0);
   while (total > 60000 && list.length > 1) total -= list.shift().content.length;
   while (list.length && list[0].role !== 'user') list.shift();
@@ -1499,7 +1530,10 @@ function buildContext(msgs) {
     else withImg++;
   }
   const fr = chatFriend();
-  return { system: fr ? friendChatSystem(fr) : systemPrompt(), messages: list };
+  const query = list.slice(-6).map(m => m.content).join('\n');
+  let system = fr ? friendChatSystem(fr) : systemPrompt(query);
+  if (cut && chat?.summary) system += `\n\n你们更早之前聊过的（前情提要，自然地记着就好，不用复述）：\n${chat.summary}`;
+  return { system, messages: list };
 }
 
 async function* lines(res) {
@@ -1766,6 +1800,34 @@ async function applyTags(bot) {
     if (!changed[flag]) continue;
     try { await DB.set(key, val()); } catch { toast('手机存储出错，有些记录可能没存上'); }
   }
+}
+
+// ════════════════ [前情提要] ════════════════
+// 一段聊天超过 SUM_EVERY 条没整理，就把除了最近 SUM_KEEP 条之外的部分，连同旧提要，合成一段新的"前情提要"。
+// 存在聊天上：summary（提要）、sumUpTo（整理到第几条）。buildContext 只发 sumUpTo 之后的消息 + 提要，
+// TA 就能记得很久以前聊过的事，也不会越聊越贵。每整理一次多花一个请求，大约每 30 条一次。群聊不整理。
+const SUM_EVERY = 60, SUM_KEEP = 30;
+let summarizing = false;
+async function maybeSummarize(c) {
+  if (summarizing || settings.summaryOn === false || !c || c.group) return;
+  const from = Math.min(c.sumUpTo || 0, c.messages.length);
+  if (c.messages.length - from < SUM_EVERY) return;
+  const to = c.messages.length - SUM_KEEP;
+  const f = c.friend ? friendOf('f:' + c.friend) : null;
+  const nick = P().nick || '对方', name = f ? f.name : (P().name || 'TA');
+  const part = normalize(c.messages.slice(from, to)).map(m => `${m.role === 'user' ? nick : name}：${m.content.slice(0, 400)}`).join('\n');
+  if (!part) return;
+  summarizing = true;
+  try {
+    const text = await complete('你负责给一段聊天写"前情提要"，给之后的自己看，好接着聊下去。',
+      `${c.summary ? '之前的提要：\n' + c.summary + '\n\n' : ''}接下来的聊天记录：\n${part}\n\n把两部分合成一份新的前情提要，500 字以内，按时间顺序：发生过的事、${nick}说过的重要信息和心情、你们的约定、还没聊完的话题。用第三人称写"${nick}"和"${name}"。只输出提要本身。`,
+      [], f ? 'f:' + f.id : 'ta');
+    if (!text) return;
+    c.summary = stripTags(text).slice(0, 1500); c.sumUpTo = to; c.sumAt = Date.now();
+    await saveChat(c);
+    if (chat === c) renderThread();
+  } catch { /* 没整理成就下次再说，不影响聊天 */ }
+  finally { summarizing = false; }
 }
 
 // ════════════════ [Vision] ════════════════
@@ -2212,6 +2274,7 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
     for (const card of bot.cards) if (card.type === 'img' && card.status === 'new') drawCard(c0, card);
     setBusy(false);
     if ((settings.speak || inCall) && bot.content) speak(bot.content);
+    if (c0 && bot.content) setTimeout(() => maybeSummarize(c0), 1500);
   }
 }
 
@@ -2355,6 +2418,7 @@ function fillSettings(p) {
   $('fBase').value = settings.bases[p] || '';
   $('fBase').placeholder = PROVIDERS[p].base;
   $('fSys').value = settings.sys;
+  $('fSum').checked = settings.summaryOn !== false;
   $('fMem').checked = settings.memoryOn; $('fDiary').checked = settings.diaryOn; $('fSpeak').checked = settings.speak;
   $('setStatus').textContent = '';
   fillImgKey();
@@ -2391,6 +2455,7 @@ async function applySettings() {
   const b = $('fBase').value.trim();
   if (b) settings.bases[p] = b; else delete settings.bases[p];
   settings.sys = $('fSys').value;
+  settings.summaryOn = $('fSum').checked;
   settings.memoryOn = $('fMem').checked; settings.diaryOn = $('fDiary').checked; settings.speak = $('fSpeak').checked;
   settings.img = $('fImg').value;
   await applyPush();
@@ -2505,11 +2570,18 @@ function renderWishes() {
   }).join('') : '<p class="note">心愿单还是空的。</p>';
 }
 
+let memFilter = '';
 function renderMemories() {
   $('memCount').textContent = memories.length;
-  $('memEyebrow').textContent = settings.memoryOn ? 'Memory · On' : 'Memory · Off（设置里已关闭）';
-  $('memList').innerHTML = memories.length ? memories.map(m => `
-    <div class="li"><span data-memedit="${m.id}" role="button" tabindex="0" title="点一下修改">${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-memdel="${m.id}" aria-label="删除">✕</button></div>`).join('')
+  $('memEyebrow').textContent = (settings.memoryOn ? 'Memory · On' : 'Memory · Off（设置里已关闭）') + (memories.length > MEM_PICK ? ` · 共 ${memories.length} 条，聊天时挑最相关的 ${MEM_PICK} 条` : '');
+  const catOf = m => m.cat || memCat(m.text);
+  const counts = {}; for (const m of memories) counts[catOf(m)] = (counts[catOf(m)] || 0) + 1;
+  $('memCats').hidden = memories.length < 6;
+  $('memCats').innerHTML = [['', `全部 ${memories.length}`], ...MEM_CAT_NAMES.filter(c => counts[c]).map(c => [c, `${c} ${counts[c]}`])]
+    .map(([c, label]) => `<button type="button" data-mcat="${esc(c)}" class="${memFilter === c ? 'on' : ''}">${esc(label)}</button>`).join('');
+  const shown = memFilter ? memories.filter(m => catOf(m) === memFilter) : memories;
+  $('memList').innerHTML = shown.length ? shown.map(m => `
+    <div class="li"><span data-memedit="${m.id}" role="button" tabindex="0" title="点一下修改"><i class="mcat">${esc(catOf(m))}</i>${esc(m.text)}<small>${esc(m.created)}</small></span><button class="del" type="button" data-memdel="${m.id}" aria-label="删除">✕</button></div>`).join('')
     : `<div class="empty"><i>✦</i><b>还没有长期记忆</b>告诉${esc(P().name || 'TA')}第一件关于你的事吧</div>`;
   const fl = friends();
   $('fmemBox').hidden = !fl.length;
@@ -3771,8 +3843,9 @@ $('memList').addEventListener('click', async e => {
   const s = e.target.closest('[data-memedit]'); if (!s) return;
   const m = memories.find(x => x.id === s.dataset.memedit); if (!m) return;
   const t = editText(m.text); if (!t || t === m.text) return;
-  m.text = t; await DB.set('memories', memories); renderMemories();
+  m.text = t; m.cat = memCat(t); await DB.set('memories', memories); renderMemories();
 });
+$('memCats').addEventListener('click', e => { const b = e.target.closest('[data-mcat]'); if (!b) return; memFilter = b.dataset.mcat; renderMemories(); });
 $('fmemList').addEventListener('click', async e => {
   const add = e.target.closest('[data-fmemadd]');
   if (add) {
