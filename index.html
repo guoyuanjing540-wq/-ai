@@ -1044,6 +1044,13 @@ let listQuery = '', listHits = new Map(), editingAt = -1;
 const P = () => settings.persona;
 const model = (p = settings.provider) => settings.models[p] || PROVIDERS[p].models[0];
 const base = (p = settings.provider) => (settings.bases[p] || PROVIDERS[p].base).replace(/\/+$/, '');
+// 发给模型的请求都走这里：接口地址填的是自己的 Worker 转发时，顺手带上 Worker 密码（Worker 那边设了密码就只认自己人）；直连各家就原样发
+async function api(url, opts = {}) {
+  const cfg = await DB.get('pushcfg').catch(() => null);
+  const w = cfg?.url?.replace(/\/+$/, '');
+  if (w && cfg.pass && url.startsWith(w + '/')) opts = { ...opts, headers: { ...opts.headers, 'x-zy-pass': cfg.pass } };
+  return fetch(url, opts);
+}
 
 const saveSettings = () => DB.set('settings', settings);
 const saveIndex = () => DB.set('chatIndex', index);
@@ -1633,9 +1640,9 @@ async function* streamChat({ provider, key, system, messages, signal, think = fa
       headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
       body.fallbacks = 'default';
     }
-    res = await fetch(base(provider) + '/v1/messages', { method: 'POST', headers, body: JSON.stringify(body), signal });
+    res = await api(base(provider) + '/v1/messages', { method: 'POST', headers, body: JSON.stringify(body), signal });
   } else {
-    const post = (mm, msgs) => fetch(base(provider) + '/chat/completions', {
+    const post = (mm, msgs) => api(base(provider) + '/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       body: JSON.stringify({ model: mm, stream: true, messages: [{ role: 'system', content: system }, ...msgs], ...thinkParams(provider, mm, think), ...(provider === 'openai' || provider === 'deepseek' ? { stream_options: { include_usage: true } } : {}) }),
@@ -1988,7 +1995,7 @@ const DS_VISION = 'deepseek-v4-flash-vision-exp';
 let dsVisionDown = false; // 这次打开 App 时看图模型已经用不了了，就别每轮都先试一次
 async function visionKey() { return (await loadSecret('img-glm')) || (await loadSecret('glm')) || (await loadSecret('search-glm')); }
 async function describeImage(url, key, signal) {
-  const res = await fetch(base('glm') + '/chat/completions', {
+  const res = await api(base('glm') + '/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
     body: JSON.stringify({ model: 'glm-4v-flash', messages: [{ role: 'user', content: [
@@ -2022,7 +2029,7 @@ async function refreshSearchReady() {
 async function webSearch(q, signal) {
   const key = await searchKey();
   if (!key) throw new Error('还没有填搜索用的智谱 Key');
-  const res = await fetch(base('glm') + '/web_search', {
+  const res = await api(base('glm') + '/web_search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
     body: JSON.stringify({ search_query: q.slice(0, 70), search_engine: 'search_std', search_intent: false, count: 6 }),
@@ -2064,7 +2071,7 @@ async function drawImage(prompt) {
     : { model: 'gpt-image-1', prompt, size: '1024x1024', quality: 'medium', n: 1 };
   let res;
   try {
-    res = await fetch(base(p) + '/images/generations', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify(body) });
+    res = await api(base(p) + '/images/generations', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify(body) });
   } catch { throw new Error('连不上画图接口，可能需要在设置里换成转发地址'); }
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error?.message || `画图失败（${res.status}）`);
@@ -2646,7 +2653,7 @@ async function checkBalance() {
   if (!key) { $('setStatus').textContent = '请先填 API Key'; return; }
   $('setStatus').textContent = '正在查…';
   try {
-    const r = await fetch(base(p) + '/user/balance', { headers: { Authorization: 'Bearer ' + key } });
+    const r = await api(base(p) + '/user/balance', { headers: { Authorization: 'Bearer ' + key } });
     if (!r.ok) throw new Error(httpError(r.status, await r.text().catch(() => ''), PROVIDERS[p].name));
     const j = await r.json();
     const infos = j.balance_infos || [];

@@ -1,6 +1,7 @@
 // 知言 · Cloudflare Worker
 // 一个文件两个用处：
 //   1. 转发接口：某家供应商在网页里"连不上"时，把设置里的接口地址填成 https://你的worker地址/deepseek（或 /openai、/glm、/claude）
+//      设了 PASS 以后转发也要密码（App 自动带上，前提是「TA 主动找你」里填了同一个 Worker 的地址和密码）
 //   2. TA 主动找你：定时生成消息、推送通知、到点提醒日程
 // 第 2 个功能需要：KV 绑定（变量名 ZY）、密钥 PASS、Cron 触发器 */10 * * * *。步骤见使用说明。
 // 可选：
@@ -47,6 +48,8 @@ export default {
 
     if (UPSTREAM[name]) {
       if (request.method !== 'POST') return new Response('Not found', { status: 404, headers: CORS });
+      // 设了密码，转发就只给自己的 App 用：App 会带上 x-zy-pass，别人知道地址也蹭不了。没设密码的老 Worker 照旧放行
+      if ((env.PASS || env.USERS) && !auth(request.headers.get('x-zy-pass') || '', env)) return json({ error: { message: 'Worker 密码不对：去知言设置里「TA 主动找你」填好 Worker 地址和密码' } }, 401);
       const headers = new Headers();
       for (const h of PASS_HEADERS) { const v = request.headers.get(h); if (v) headers.set(h, v); }
       const upstream = await fetch(`${UPSTREAM[name]}/${rest.join('/')}`, { method: 'POST', headers, body: request.body });
