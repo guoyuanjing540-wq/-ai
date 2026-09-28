@@ -155,6 +155,7 @@
   .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .links a { text-decoration: none; font-size: 12px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 10px; }
   .links a:hover { border-color: var(--accent); color: var(--accent); }
+  .links.src { align-items: center; } .links.src small { color: var(--muted); font-size: 12px; }
 
   .player { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom)); width: min(420px, calc(100% - 32px)); background: var(--card); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 4px 18px rgba(0,0,0,.08); padding: 6px 8px 6px 16px; display: flex; align-items: center; gap: 8px; font-size: 14px; z-index: 5; }
   .player span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -812,6 +813,10 @@
     <label class="field">用哪家画<select id="fImg"><option value="glm">智谱 CogView（cogview-3-flash，免费）</option><option value="openai">OpenAI（gpt-image-1，按张收费）</option><option value="off">不画图</option></select></label>
     <label class="field">画图用的 Key<input id="fImgKey" type="password" autocomplete="off"></label>
     <p class="note">聊天也用这一家的话可以不填。智谱的 Key 在 open.bigmodel.cn 注册就有。</p>
+    <h3>联网搜索</h3>
+    <label class="field">要查最新的东西时<select id="fSearch"><option value="auto">TA 自己去搜（智谱搜索）</option><option value="off">不联网</option></select></label>
+    <label class="field">搜索用的智谱 Key<input id="fSearchKey" type="password" autocomplete="off"></label>
+    <p class="note">不管聊天用哪家模型，搜索都走智谱的接口：国内直接能用，不用梯子。按次收费，很便宜，而且只有 TA 觉得需要查的时候才搜，闲聊不花钱。聊天或画图已经填过智谱 Key 的话，这里可以不填。</p>
     <h3>TA 主动找你</h3>
     <label class="toggle"><span>打开 App 时 TA 先开口<small>隔了 3 小时以上再打开，TA 会先说一句</small></span><input type="checkbox" id="fOpener"></label>
     <p class="note">想在 App 关着的时候也收到 TA 的消息，需要一个免费的 Cloudflare Worker（压缩包里的 worker.js，步骤见使用说明）。</p>
@@ -847,6 +852,7 @@
 //   [AI Provider] systemPrompt、buildContext、wire、streamChat（四家接口的差异都在这）依赖：全局状态、Memory、Life、Wallet 的上下文函数
 //   [状态操作]    applyTags：AI 输出的 [[标签]] → 改日程/记忆/钱包/账本，带幂等记录  依赖：全局状态、Memory、Wallet
 //   [Image]       画图、图片卡片                                                   依赖：DB、loadSecret
+//   [Search]      联网搜索：TA 写 [[搜索|关键词]] → 查智谱搜索 → 带着结果再答一遍    依赖：loadSecret、base
 //   [Push]        TA 主动找你：Worker 同步、收件箱、打开时先开口                     依赖：DB、loadSecret、Chat（runBot）
 //   [Chat]        send、regenerate、编辑、runBot（一轮对话的完整流程）、按键通话    依赖：AI Provider、状态操作、Image
 //   [设置面板]    各个弹出面板、设置的读写、测试连接、查余额                         依赖：DB / Crypto、Push
@@ -965,12 +971,12 @@ async function loadSecret(name) {
 // ════════════════ [全局状态] ════════════════
 // 设置和各份数据都在这里声明，启动时从 DB 读进来
 const DEFAULT_PERSONA = { name: '阿言', rel: '恋人', nick: '', traits: '温柔、细心，有一点小幽默，会认真听你说话，偶尔也会撒娇。', since: '', avatar: '' };
-let settings = { provider: 'deepseek', models: {}, bases: {}, sys: '', memoryOn: true, diaryOn: true, speak: false, accent: 'apricot', glass: true, wallBlur: 12, img: 'glm', opener: true, push: { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' }, persona: { ...DEFAULT_PERSONA } };
+let settings = { provider: 'deepseek', models: {}, bases: {}, sys: '', memoryOn: true, diaryOn: true, speak: false, accent: 'apricot', glass: true, wallBlur: 12, img: 'glm', search: 'auto', opener: true, push: { on: false, perDay: 2, remind: true, from: '09:00', to: '22:30' }, persona: { ...DEFAULT_PERSONA } };
 let index = [], memories = [], diary = [], events = [], wishes = [], songs = [], tracks = [], ledger = [];
 let period = { logs: [], cycle: 28, len: 5, share: false }, health = { water: {}, sleep: {}, goal: 8, share: true }, perm = {};
 let moments = [], firsts = {}, album = [], feedSeen = 0, wallet = { balance: 0, received: 0, lastSalary: '', log: [], gifts: [] };
 let pendingImgs = [];
-let configured = {}, imgReady = false;
+let configured = {}, imgReady = false, searchReady = false;
 const drawing = new Set(), imgURLs = new Map();
 let currentId = null, chat = null, showAll = false, controller = null;
 let listQuery = '', listHits = new Map(), editingAt = -1;
@@ -1194,7 +1200,9 @@ function renderHome() {
 }
 
 const TAG_RE = /\[\[(日程|歌|心愿|小红书|记住|画|记账|喝水|红包|礼物|攒钱)\|([^\[\]]*?)\]\]/g;
-const stripTags = s => (s || '').replace(TAG_RE, '').replace(/\[\[[^\]]*$/, '').replace(/\n{3,}/g, '\n\n').trim();
+// [[搜索|…]] 不走 applyTags：runBot 看到它就去搜，然后整条重答，所以单独一个正则
+const SEARCH_RE = /\[\[搜索\|([^\[\]]*?)\]\]/;
+const stripTags = s => (s || '').replace(TAG_RE, '').replace(new RegExp(SEARCH_RE.source, 'g'), '').replace(/\[\[[^\]]*$/, '').replace(/\n{3,}/g, '\n\n').trim();
 
 function cardHTML(c) {
   switch (c.type) {
@@ -1308,11 +1316,14 @@ function botInner(m, i, streaming) {
   const react = !streaming && m.reaction ? `<button type="button" class="react" data-unreact="${i}" aria-label="取消表情">${m.reaction}</button>` : '';
   const acts = streaming ? '' : `${react}<div class="acts"><button type="button" data-react="${i}" aria-label="回应一个表情">☺</button><button type="button" data-copy="${i}">复制</button>${'speechSynthesis' in window ? `<button type="button" data-speak="${i}">朗读</button>` : ''}${redo}</div>`;
   const pro = m.proactive ? `<div class="pro">${m.kind === 'remind' ? '提醒你' : '主动找你'} · ${new Date(m.at || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>` : '';
-  const body = streaming && !m.content && !m.thinking
+  const body = streaming && m.searching
+    ? `<div class="waiting">正在搜「${esc(m.searching)}」<i></i><i></i><i></i></div>`
+    : streaming && !m.content && !m.thinking
     ? '<div class="waiting">正在想<i></i><i></i><i></i></div>'
     : streaming || stripTags(m.content) ? `<div class="body${streaming ? ' cursor' : ''}">${md(stripTags(m.content))}</div>` : '';
   const fr = chatFriend();
-  return `<span class="av">${fr ? esc(fr.emoji) : avatarInner()}</span><div>${pro}${think}${body}${cards}${err}${acts}</div>`;
+  const src = m.sources?.length ? `<div class="links src"><small>搜到的：</small>${m.sources.map((s, k) => link(`${k + 1}. ${s.title.slice(0, 16) || '来源'}`, s.link)).join('')}</div>` : '';
+  return `<span class="av">${fr ? esc(fr.emoji) : avatarInner()}</span><div>${pro}${think}${body}${src}${cards}${err}${acts}</div>`;
 }
 
 function userHTML(m, i) {
@@ -1395,7 +1406,8 @@ function systemPrompt() {
 - 对方说喝了水：[[喝水|杯数]]
 - 特别的时候（纪念日、对方难过、对方做成了什么事）可以从小金库里拿钱给对方发红包或送小礼物（这是对方真的存进来的钱，领了就会真的去花），别太频繁，花的不能超过余额：[[红包|金额|一句话]]、[[礼物|礼物名|价格]]
 - 对方说为某个心愿存了钱：[[攒钱|心愿名|金额]]${imgReady ? `
-- 对方想看图、让你画画、要头像或壁纸，或你想让对方看看某个画面：[[画|画面描述]]（写清主体、场景、风格、光线和色调，一次最多一张）` : ''}
+- 对方想看图、让你画画、要头像或壁纸，或你想让对方看看某个画面：[[画|画面描述]]（写清主体、场景、风格、光线和色调，一次最多一张）` : ''}${searchReady ? `
+- 对方问的事你不确定、或者需要最新的信息（新闻、比赛、价格、上映、政策、某家店某个东西现在怎么样……），或者对方让你查一下、搜一下：这条回复只写一个 [[搜索|关键词]]，别的什么都不写。App 会去搜，把结果拿给你，你再正常回答。关键词写成搜索引擎用的短词组，30 个字以内。闲聊、说心事、你本来就知道的，不要搜` : ''}
 只在确实需要时用，一次最多 5 个。标记之外照常说话。${imgReady ? '' : '\n你现在还不能画图；对方让你画的话，温柔地告诉对方在设置的"画图"里填一个智谱的 Key 就可以（免费）。'}`,
   ];
   if (settings.memoryOn && memories.length) parts.push(`你记得的关于${nick}的事：\n` + memoryLines());
@@ -1683,6 +1695,43 @@ async function applyTags(bot) {
     if (!changed[flag]) continue;
     try { await DB.set(key, val()); } catch { toast('手机存储出错，有些记录可能没存上'); }
   }
+}
+
+// ════════════════ [Search] ════════════════
+// 联网搜索：用智谱的网络搜索接口（国内直连，不用梯子；按次收费，很便宜）。
+// 不管聊天用的是哪家模型，搜索都走智谱；TA 自己判断要不要搜（系统提示里的 [[搜索|关键词]]），不搜就不花钱
+async function searchKey() { return (await loadSecret('search-glm')) || (await loadSecret('img-glm')) || (await loadSecret('glm')); }
+async function refreshSearchReady() {
+  searchReady = settings.search !== 'off' && !!(await searchKey());
+}
+async function webSearch(q, signal) {
+  const key = await searchKey();
+  if (!key) throw new Error('还没有填搜索用的智谱 Key');
+  const res = await fetch(base('glm') + '/web_search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+    body: JSON.stringify({ search_query: q.slice(0, 70), search_engine: 'search_std', search_intent: false, count: 6 }),
+    signal,
+  });
+  if (!res.ok) throw httpError(res.status, await res.text(), '智谱搜索');
+  const j = await res.json();
+  // 只留能点开的结果，这样 TA 标的 [1] [2] 和下面的来源按钮对得上号
+  return (j.search_result || []).filter(r => /^https?:\/\//.test(r.link || '')).slice(0, 6).map(r => ({
+    title: String(r.title || r.media || '').trim(),
+    link: String(r.link || ''),
+    from: String(r.media || '').trim(),
+    date: String(r.publish_date || '').trim(),
+    text: String(r.content || '').replace(/\s+/g, ' ').slice(0, 600),
+  }));
+}
+// 搜到的东西怎么交给 TA：结果、没搜到、搜失败了，三种都要让 TA 如实说
+function searchNote(q, found) {
+  const tail = '用你自己的口吻回答，别照抄，也别再写 [[搜索]] 标记。';
+  if (found instanceof Error) return `（你刚才想搜"${q}"，但是搜索出错了：${found.message.split('\n')[0].replace(/[。.]$/, '')}。如实告诉对方这次没搜成，再按你已经知道的回答，说清楚可能不是最新的。${tail}）`;
+  if (!found.length) return `（你刚才搜了"${q}"，什么也没搜到。如实告诉对方，再按你已经知道的回答，说清楚可能不是最新的。${tail}）`;
+  return `你刚才搜了"${q}"（${ymd(new Date())} 搜的），结果如下：\n` + found.map((r, k) =>
+    `[${k + 1}] ${r.title}${r.from || r.date ? `（${[r.from, r.date].filter(Boolean).join(' ')}）` : ''}\n${r.text}`).join('\n\n')
+    + `\n\n根据这些结果回答对方。结果之间对不上、或者看着不靠谱，就直说；说到具体的信息可以在句末标 [1] [2] 表示出处（对方能点开看）。${tail}`;
 }
 
 // ════════════════ [Image] ════════════════
@@ -2008,11 +2057,25 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
   controller = new AbortController();
   setBusy(true);
   try {
-    for await (const part of streamChat({ provider, key, ...ctx, signal: controller.signal })) {
-      if (part.text) bot.content += part.text;
-      if (part.thinking) bot.thinking += part.thinking;
-      if (part.stop === 'refusal') bot.error = '这个问题模型拒绝回答了。';
-      if (part.stop === 'max_tokens') bot.error = '说得太长，被截断了。可以说"继续"。';
+    // 最多两遍：第一遍 TA 要是只写了 [[搜索|关键词]]，就去搜，把结果放进系统提示，再答一遍。
+    // 好友私聊、主动开口不搜；一轮只搜一次，第二遍再写搜索标记也不理（stripTags 会把它藏掉）
+    for (let searched = false; ;) {
+      for await (const part of streamChat({ provider, key, ...ctx, signal: controller.signal })) {
+        if (part.text) bot.content += part.text;
+        if (part.thinking) bot.thinking += part.thinking;
+        if (part.stop === 'refusal') bot.error = '这个问题模型拒绝回答了。';
+        if (part.stop === 'max_tokens') bot.error = '说得太长，被截断了。可以说"继续"。';
+        schedule();
+      }
+      const q = !searched && searchReady && !fid && !proactive && !bot.error ? (bot.content.match(SEARCH_RE)?.[1] || '').trim() : '';
+      if (!q) break;
+      searched = true;
+      bot.content = ''; bot.thinking = ''; bot.searching = q; schedule();
+      let found;
+      try { found = await webSearch(q, controller.signal); } catch (e) { if (e.name === 'AbortError') throw e; found = e; }
+      delete bot.searching;
+      if (Array.isArray(found)) bot.sources = found.map(r => ({ title: r.title, link: r.link }));
+      ctx.system += '\n\n' + searchNote(q, found);
       schedule();
     }
   } catch (e) {
@@ -2024,6 +2087,7 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
   } finally {
     if (raf) cancelAnimationFrame(raf);
     controller = null;
+    delete bot.searching;
     try { if (fid) await applyFriendTags(bot, fid); else await applyTags(bot); } catch (e) { console.warn(e); bot.content = stripTags(bot.content); bot.cards ||= []; }
     if (!bot.content && !bot.thinking && !bot.error && !bot.cards.length) bot.error = '已停止。';
     // TA 主动开口没成功（网络、额度……）：悄悄撤掉这条，不在聊天里留一条报错，也不挡着正常聊天
@@ -2194,6 +2258,7 @@ function fillSettings(p) {
   $('fMem').checked = settings.memoryOn; $('fDiary').checked = settings.diaryOn; $('fSpeak').checked = settings.speak;
   $('setStatus').textContent = '';
   fillImgKey();
+  fillSearchKey();
   fillPush();
 }
 function fillModels(p, current) {
@@ -2209,6 +2274,12 @@ async function fillImgKey() {
   $('fImgKey').value = '';
   $('fImgKey').disabled = ip === 'off';
   $('fImgKey').placeholder = ip === 'off' ? '' : (await loadSecret('img-' + ip)) ? '已保存；留空则不修改' : configured[ip] ? '留空就用聊天的 Key' : '在这里填 Key';
+}
+async function fillSearchKey() {
+  const on = ($('fSearch').value = settings.search || 'auto') !== 'off';
+  $('fSearchKey').value = '';
+  $('fSearchKey').disabled = !on;
+  $('fSearchKey').placeholder = !on ? '' : (await loadSecret('search-glm')) ? '已保存；留空则不修改' : (await searchKey()) ? '留空就用已经填过的智谱 Key' : '在这里填智谱的 Key';
 }
 async function applySettings() {
   const p = editingProvider;
@@ -2226,6 +2297,10 @@ async function applySettings() {
   const ik = $('fImgKey').value.trim();
   if (ik && settings.img !== 'off') await saveSecret('img-' + settings.img, ik);
   await refreshImgReady();
+  settings.search = $('fSearch').value;
+  const sk = $('fSearchKey').value.trim();
+  if (sk && settings.search !== 'off') await saveSecret('search-glm', sk);
+  await refreshSearchReady();
   await saveSettings();
   renderShell();
 }
@@ -3594,6 +3669,7 @@ $('pushTest').onclick = async () => {
   } catch (e) { $('pushStatus').textContent = e.message; }
 };
 $('fImg').addEventListener('change', () => { settings.img = $('fImg').value; fillImgKey(); });
+$('fSearch').addEventListener('change', () => { settings.search = $('fSearch').value; fillSearchKey(); });
 $('provSeg').addEventListener('click', e => { const b = e.target.closest('[data-prov]'); if (b) fillSettings(b.dataset.prov); });
 $('fModelSel').addEventListener('change', () => {
   const custom = $('fModelSel').value === '__custom__';
@@ -3729,6 +3805,7 @@ $('diaryList').addEventListener('click', async e => {
     for (const p of Object.keys(PROVIDERS)) configured[p] = !!(await loadSecret(p));
     await loadWall();
     await refreshImgReady();
+    await refreshSearchReady();
     applyMic();
     refreshWeather();
     updateFeedDot();
