@@ -853,7 +853,7 @@
 //   [AI Provider] systemPrompt、buildContext、wire、streamChat（四家接口的差异都在这）依赖：全局状态、Memory、Life、Wallet 的上下文函数
 //   [状态操作]    applyTags：AI 输出的 [[标签]] → 改日程/记忆/钱包/账本，带幂等记录  依赖：全局状态、Memory、Wallet
 //   [Image]       画图、图片卡片                                                   依赖：DB、loadSecret
-//   [Vision]      看不了图的模型（DeepSeek）先让智谱 glm-4v-flash 把照片说成文字      依赖：loadSecret、base
+//   [Vision]      DeepSeek 看图：自动换看图模型；用不了时退回智谱 glm-4v-flash 描述     依赖：loadSecret、base
 //   [Search]      联网搜索：TA 写 [[搜索|关键词]] → 查智谱搜索 → 带着结果再答一遍    依赖：loadSecret、base
 //   [Push]        TA 主动找你：Worker 同步、收件箱、打开时先开口                     依赖：DB、loadSecret、Chat（runBot）
 //   [Chat]        send、regenerate、编辑、runBot（一轮对话的完整流程）、按键通话    依赖：AI Provider、状态操作、Image
@@ -1318,9 +1318,7 @@ function botInner(m, i, streaming) {
   const react = !streaming && m.reaction ? `<button type="button" class="react" data-unreact="${i}" aria-label="取消表情">${m.reaction}</button>` : '';
   const acts = streaming ? '' : `${react}<div class="acts"><button type="button" data-react="${i}" aria-label="回应一个表情">☺</button><button type="button" data-copy="${i}">复制</button>${'speechSynthesis' in window ? `<button type="button" data-speak="${i}">朗读</button>` : ''}${redo}</div>`;
   const pro = m.proactive ? `<div class="pro">${m.kind === 'remind' ? '提醒你' : '主动找你'} · ${new Date(m.at || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>` : '';
-  const body = streaming && m.looking
-    ? '<div class="waiting">正在看照片<i></i><i></i><i></i></div>'
-    : streaming && m.searching
+  const body = streaming && m.searching
     ? `<div class="waiting">正在搜「${esc(m.searching)}」<i></i><i></i><i></i></div>`
     : streaming && !m.content && !m.thinking
     ? '<div class="waiting">正在想<i></i><i></i><i></i></div>'
@@ -1490,10 +1488,11 @@ function httpError(status, bodyText, name = '供应商') {
   return new Error(`${tip}\n详细：${String(msg).slice(0, 200)}`);
 }
 // 把带图的消息转换成各家接口要的格式；DeepSeek 看不了图，改成一句说明
-function wire(msg, provider) {
+// DeepSeek 平时用自己的看图模型直接看；blind=true 是它的看图模型用不了时的退路：照片换成文字
+function wire(msg, provider, blind = false) {
   if (!msg.imgs?.length) return { role: msg.role, content: msg.content };
   const text = msg.content || '（发了一张照片）';
-  if (provider === 'deepseek') return { role: msg.role, content: msg.desc
+  if (provider === 'deepseek' && blind) return { role: msg.role, content: msg.desc
     ? `${text}\n（对方发来了 ${msg.imgs.length} 张照片。你看不到原图，下面是照片的内容，就当是你亲眼看到的，自然地回应，别说"根据描述"：\n${msg.desc}）`
     : `${text}\n（对方发来了 ${msg.imgs.length} 张照片，但你现在看不到图片。可以温柔地请对方说说照片里是什么。）` };
   if (PROVIDERS[provider].kind === 'anthropic') return { role: msg.role, content: [...msg.imgs.map(u => ({ type: 'image', source: { type: 'base64', media_type: u.slice(5, u.indexOf(';')), data: u.slice(u.indexOf(',') + 1) } })), { type: 'text', text }] };
@@ -1517,8 +1516,9 @@ function thinkParams(provider, m, on) {
 async function* streamChat({ provider, key, system, messages, signal, think = false }) {
   const p = PROVIDERS[provider];
   const hasImg = messages.some(x => x.imgs?.length);
-  messages = messages.map(x => wire(x, provider));
-  const m = hasImg && provider === 'glm' && !/\dv/i.test(model(provider)) ? 'glm-4v-flash' : model(provider);
+  const raw = messages, dsEyes = hasImg && provider === 'deepseek' && !dsVisionDown;
+  messages = raw.map(x => wire(x, provider));
+  const m = dsEyes ? DS_VISION : hasImg && provider === 'glm' && !/\dv/i.test(model(provider)) ? 'glm-4v-flash' : model(provider);
   let res;
   if (p.kind === 'anthropic') {
     const headers = {
@@ -1534,12 +1534,21 @@ async function* streamChat({ provider, key, system, messages, signal, think = fa
     }
     res = await fetch(base(provider) + '/v1/messages', { method: 'POST', headers, body: JSON.stringify(body), signal });
   } else {
-    res = await fetch(base(provider) + '/chat/completions', {
+    const post = (mm, msgs) => fetch(base(provider) + '/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-      body: JSON.stringify({ model: m, stream: true, messages: [{ role: 'system', content: system }, ...messages], ...thinkParams(provider, m, think) }),
+      body: JSON.stringify({ model: mm, stream: true, messages: [{ role: 'system', content: system }, ...msgs], ...thinkParams(provider, mm, think) }),
       signal,
     });
+    res = !dsEyes && hasImg && provider === 'deepseek'
+      ? (await describeInto(raw, signal), await post(m, raw.map(x => wire(x, provider, true))))
+      : await post(m, messages);
+    // DeepSeek 的看图模型还是实验版，哪天下线了（400/404）就退回：有智谱 Key 先让智谱把照片说成文字，再用平时的模型答
+    if (dsEyes && (res.status === 400 || res.status === 404)) {
+      dsVisionDown = true;
+      await describeInto(raw, signal).catch(e => { if (e.name === 'AbortError') throw e; });
+      res = await post(model(provider), raw.map(x => wire(x, provider, true)));
+    }
   }
   if (!res.ok) throw httpError(res.status, await res.text(), p.name);
   for await (const line of lines(res)) {
@@ -1721,9 +1730,10 @@ async function applyTags(bot) {
 }
 
 // ════════════════ [Vision] ════════════════
-// DeepSeek 看不了图：发照片时先让智谱的 glm-4v-flash（免费）把每张照片说成一段文字，
-// 存在那条消息的 imgDesc 上（只看一次），再当成 TA "看到的"交给 DeepSeek。没有智谱 Key 就还是老样子，请对方说说照片里是什么
-const needsEyes = provider => provider === 'deepseek';
+// DeepSeek 看图：带照片的那一轮自动换成 DeepSeek 自己的看图模型（同一个 Key，按 V4-Flash 计价，一张图最多 384 token）。
+// 它还是实验版，用不了的时候 streamChat 会退回来：先让智谱的 glm-4v-flash（免费）把照片说成文字，再交给平时的模型
+const DS_VISION = 'deepseek-v4-flash-vision-exp';
+let dsVisionDown = false; // 这次打开 App 时看图模型已经用不了了，就别每轮都先试一次
 async function visionKey() { return (await loadSecret('img-glm')) || (await loadSecret('glm')) || (await loadSecret('search-glm')); }
 async function describeImage(url, key, signal) {
   const res = await fetch(base('glm') + '/chat/completions', {
@@ -1739,18 +1749,15 @@ async function describeImage(url, key, signal) {
   const j = await res.json();
   return String(j.choices?.[0]?.message?.content || '').trim();
 }
-// 给一组消息里还没描述过的照片补上描述；返回是否有改动。失败的照片跳过，不挡着聊天
-async function describeMissing(msgs, signal) {
+// 给最近两条带图、还没描述的消息补上 desc。没有智谱 Key 就什么都不做；某张失败就跳过
+async function describeInto(msgs, signal) {
   const key = await visionKey();
-  if (!key) return false;
-  const todo = msgs.filter(m => m.role === 'user' && m.imgs?.length && !m.imgDesc).slice(-2);
-  let changed = false;
-  for (const m of todo) {
+  if (!key) return;
+  for (const m of msgs.filter(m => m.imgs?.length && !m.desc).slice(-2)) {
     const parts = await Promise.all(m.imgs.slice(0, 4).map((u, k) => describeImage(u, key, signal).then(t => t && (m.imgs.length > 1 ? `第 ${k + 1} 张：${t}` : t)).catch(e => { if (e.name === 'AbortError') throw e; return ''; })));
     const d = parts.filter(Boolean).join('\n');
-    if (d) { m.imgDesc = d; changed = true; }
+    if (d) m.desc = d;
   }
-  return changed;
 }
 
 // ════════════════ [Search] ════════════════
@@ -2106,11 +2113,6 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
 
   controller = new AbortController();
   setBusy(true);
-  if (needsEyes(provider) && chat.messages.some(m => m.imgs?.length && !m.imgDesc)) {
-    bot.looking = true; paint();
-    try { if (await describeMissing(chat.messages, controller.signal)) await saveChat(chat).catch(() => {}); } catch { /* 停止了，下面照常收尾 */ }
-    delete bot.looking;
-  }
   const ctx = buildContext(chat.messages.slice(0, -1));
   if (nudge) {
     const last = ctx.messages[ctx.messages.length - 1];
@@ -2148,7 +2150,7 @@ async function runBot(provider, key, { nudge = '', extra = '', proactive = false
   } finally {
     if (raf) cancelAnimationFrame(raf);
     controller = null;
-    delete bot.searching; delete bot.looking;
+    delete bot.searching;
     try { if (fid) await applyFriendTags(bot, fid); else await applyTags(bot); } catch (e) { console.warn(e); bot.content = stripTags(bot.content); bot.cards ||= []; }
     if (!bot.content && !bot.thinking && !bot.error && !bot.cards.length) bot.error = '已停止。';
     // TA 主动开口没成功（网络、额度……）：悄悄撤掉这条，不在聊天里留一条报错，也不挡着正常聊天
@@ -2767,10 +2769,6 @@ async function complete(system, user, imgs = []) {
   if (!key) throw new Error(`先在设置里填 ${PROVIDERS[provider].name} 的 API Key`);
   let text = '';
   const msg = imgs.length ? { role: 'user', content: user, imgs } : { role: 'user', content: user };
-  if (imgs.length && needsEyes(provider)) {
-    const tmp = { role: 'user', imgs };
-    if (await describeMissing([tmp]).catch(() => false)) msg.desc = tmp.imgDesc;
-  }
   for await (const part of streamChat({ provider, key, system, messages: [msg] })) if (part.text) text += part.text;
   return text.trim();
 }
