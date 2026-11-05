@@ -1,5 +1,5 @@
 // 每次更新文件后把版本号 +1，手机上才会拿到新版本
-const CACHE = 'zhiyan-v27';
+const CACHE = 'zhiyan-v28';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/marked.min.js', './vendor/purify.min.js', './vendor/highlight.min.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
@@ -19,12 +19,16 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
+  // 打开页面：先问网络，3 秒没回就先用存着的那份（GitHub 在国内经常很慢，干等就是白屏）
+  // 网络那份后台照样下完、存起来，下次打开就是新的
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE).then(c => c.put('./index.html', copy));
+    const net = fetch(req).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put('./index.html', copy)); }
       return res;
-    }).catch(() => caches.match('./index.html')));
+    });
+    e.waitUntil(net.then(() => {}, () => {}));
+    e.respondWith(Promise.race([net.catch(() => null), new Promise(r => setTimeout(r, 3000, null))])
+      .then(res => res || caches.match('./index.html').then(hit => hit || net)));
     return;
   }
 
